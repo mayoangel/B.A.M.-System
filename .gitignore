@@ -1,0 +1,12 @@
+# Ignorar carpetas de dependencias y caché
+node_modules/
+.npm/
+.eslintcache
+
+# Si usas Python
+__pycache__/
+*.pyc
+
+# Archivos del sistema (Ubuntu/Linux)
+.DS_Store
+.thumbs
