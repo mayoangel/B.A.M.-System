@@ -32,7 +32,7 @@ class ParentRepository:
         return False
 
     #eliminar padres
-    def delate_parent(self, parentName: str) -> bool:
+    def delete_parent(self, parentName: str) -> bool:
         db_parent = self.get_parent_by_name(parentName)
         if db_parent:
             self.db.delete(db_parent)

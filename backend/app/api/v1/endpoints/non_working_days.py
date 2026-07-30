@@ -4,9 +4,9 @@ from app.services.non_working_days_services import NonWorkingDaysService
 
 non_working_days_bp = Blueprint('non_working_days', __name__, url_prefix='/api/v1/calendar')
 
-@non_working_days_bp.route('', methods=['GET'])
+@non_working_days_bp.route('/', methods=['GET'])
 def get_all_days():
-    db = next(get_db())
+    db = get_db()
     service = NonWorkingDaysService(db)
     days = service.list_all_days()
     
@@ -16,7 +16,7 @@ def get_all_days():
         "description": d.description
     } for d in days]), 200
 
-@non_working_days_bp.route('', methods=['POST'])
+@non_working_days_bp.route('/', methods=['POST'])
 def create_day():
     data = request.get_json() or {}
     date_str = data.get("date")
@@ -25,7 +25,7 @@ def create_day():
     if not date_str or not description:
         return jsonify({"error": "Los campos 'date' y 'description' son obligatorios."}), 400
 
-    db = next(get_db())
+    db = get_db()
     try:
         service = NonWorkingDaysService(db)
         new_day = service.add_non_working_day(date_str, description)
@@ -42,7 +42,7 @@ def create_day():
 
 @non_working_days_bp.route('/<int:id>', methods=['DELETE'])
 def delete_day(id):
-    db = next(get_db())
+    db = get_db()
     try:
         service = NonWorkingDaysService(db)
         result = service.delete_non_working_day(id)

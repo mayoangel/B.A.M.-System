@@ -33,7 +33,7 @@ app.register_blueprint(attendance_bp, url_prefix="/api/v1/attendance" )
 app.register_blueprint(biometric_bp, url_prefix="/api/v1/biometrics")
 app.register_blueprint(courses_bp, url_prefix="/api/v1/courses")
 app.register_blueprint(employees_bp, url_prefix="/api/v1/employees")
-app.register_blueprint(employee_course_bp, url_prefix="/api/v1/employee-courses")
+app.register_blueprint(employee_course_bp, url_prefix="/api/v1/employee_course")
 app.register_blueprint(non_working_days_bp, url_prefix="/api/v1/calendar")
 app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
 

@@ -10,7 +10,7 @@ def assign_course_to_employee():
     course_id = data.get("course_id")
     try:
         service = EmployeeCourseService(g.db)
-        service.assign_teacher_to_course(employee_id, course_id)
+        service.assign_course_to_employee(employee_id, course_id)
         return jsonify({"message": f"Profesor {employee_id} asignado al curso {course_id} con éxito."}), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -22,7 +22,7 @@ def unassign_course_from_employee():
     course_id = data.get("course_id")
     try:
         service = EmployeeCourseService(g.db)
-        service.remove_teacher_from_course(employee_id, course_id)
+        service.remove_course_from_employee(employee_id, course_id)
         return jsonify({"message": f"Se retiró al profesor {employee_id} del curso {course_id} exitosamente."}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

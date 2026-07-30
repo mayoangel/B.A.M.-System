@@ -7,5 +7,5 @@ class Reports(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable= False)
     generation_date = Column(DateTime, nullable=False)
-    id_employee = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
     employee = relationship("Employees", back_populates="reports")

@@ -15,7 +15,7 @@ def assign_tutor():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-@student_tutor_bp.route('/active/<int:student_id>', methods=['GET'])
+@student_tutor_bp.route('/Active/<int:student_id>', methods=['GET'])
 def get_active_assignment(student_id):
     db = get_db()
     try:

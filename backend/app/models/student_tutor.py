@@ -7,7 +7,7 @@ class StudentTutor(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
-    status = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False, default="Active")
     student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
     students = relationship("Students", back_populates="student_tutor")

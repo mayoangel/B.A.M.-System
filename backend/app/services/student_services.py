@@ -10,7 +10,7 @@ class StudentService:
         if not student_data.get("id_student") or not student_data.get("name"):
             raise ValueError("La matrícula (id_student) y el nombre son campos obligatorios.")
             
-        existing_code = self.repository.getStudentByIdStudent(student_data.get("id_student"))
+        existing_code = self.repository.getStudentById(student_data.get("id_student"))
         if existing_code:
             raise ValueError(f"Ya existe un estudiante registrado con la matrícula '{student_data.get('id_student')}'.")
 

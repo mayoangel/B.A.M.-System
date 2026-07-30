@@ -49,7 +49,7 @@ def get_course(name):
     try:
         service = CourseService(g.db)
         course = service.get_course_by_name(name)
-        return jsonify({"id": course.id, "name": course.name, "code": course.code}), 200
+        return jsonify([serialize_course(course)]), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
 

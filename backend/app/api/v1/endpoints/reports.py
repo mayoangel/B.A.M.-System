@@ -17,7 +17,7 @@ def create_report():
     
 @reports_bp.route('/', methods=['GET'])
 def get_all_reports():
-    db = next(get_db())
+    db = get_db()
     try:
         service = ReportService(db)
         reports = service.list_all_reports()
@@ -32,7 +32,7 @@ def get_all_reports():
 
 @reports_bp.route('/filter', methods=['GET'])
 def get_reports_by_date():
-    db = next(get_db())
+    db = get_db()
     date_str = request.args.get('date', '')
     try:
         service = ReportService(db)
@@ -52,7 +52,7 @@ def get_report(name):
     try:
         service = ReportService(db)
         report = service.get_report_by_name(name)
-        return jsonify({"id": report.id, "name": report.name, "description": report.description}), 200
+        return jsonify({"id": report.id, "name": report.name}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
 

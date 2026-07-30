@@ -17,7 +17,7 @@ def register_student():
     
 @students_bp.route('/', methods=['GET'])
 def get_all_students():
-    db = next(get_db())
+    db = get_db()
     try:
         service = StudentService(db)
         students = service.list_all_students()
@@ -34,7 +34,7 @@ def get_all_students():
 
 @students_bp.route('/course/<int:course_id>', methods=['GET'])
 def get_students_by_course(course_id):
-    db = next(get_db())
+    db = get_db()
     try:
         service = StudentService(db)
         students = service.list_students_by_course(course_id)

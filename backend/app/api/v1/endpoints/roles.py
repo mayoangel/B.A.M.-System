@@ -20,14 +20,14 @@ def get_role(name):
     db = get_db()
     try:
         service = RoleService(db)
-        role = service.get_role_by_name(name)
+        role = service.get_Role_Name(name)
         return jsonify({"id": role.id, "name": role.name, "description": role.description}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     
 @roles_bp.route('/', methods=['GET'])
 def get_all_roles():
-    db = next(get_db())
+    db = get_db()
     try:
         service = RoleService(db)
         roles = service.list_all_roles()
@@ -45,7 +45,7 @@ def update_role(name):
     new_data = request.get_json() or {}
     try:
         service = RoleService(db)
-        service.update_role(name, new_data)
+        service.update_Role(name, new_data)
         return jsonify({"message": f"Rol '{name}' modificado correctamente."}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -55,7 +55,7 @@ def delete_role(name):
     db = get_db()
     try:
         service = RoleService(db)
-        service.delete_role(name)
+        service.delete_Role(name)
         return jsonify({"message": f"Rol '{name}' removido con éxito."}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400

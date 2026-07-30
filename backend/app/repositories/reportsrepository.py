@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.models.reports import Reports
+from sqlalchemy import func
 
 class ReportsRepository:
     def __init__ (self,db:Session):
@@ -20,10 +21,9 @@ class ReportsRepository:
     # Buscar reportes filtrados por una fecha específica
     from datetime import date
     def getReportsByDate(self, target_date: date) -> list[Reports]:
-        return self.db.query(Reports).filter(
-            self.db.func.date(Reports.generation_date) == target_date
-        ).order_by(Reports.generation_date.desc()).all()
-
+        query = self.db.query(Reports).filter(func.date(Reports.generation_date) == target_date)
+        return query.all()
+    
     #buscar roporte por nombre
     def get_report_by_name(self, reportName: str) -> Reports:
         return self.db.query(Reports).filter(Reports.name == reportName).first()

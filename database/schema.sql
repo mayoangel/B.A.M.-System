@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS courses(
 
 CREATE TABLE IF NOT EXISTS employees(
     id INT PRIMARY KEY AUTO_INCREMENT,
-    id_employee INT NOT NULL,
+    id_employee VARCHAR(50) NOT NULL,
     name VARCHAR(100) NOT NULL,
     lastname VARCHAR(100) NOT NULL,
     surename VARCHAR(100) NULL,
