@@ -41,7 +41,27 @@ class CourseService:
         return True
 
     def delete_course(self, course_name: str) -> bool:
-        deleted = self.repository.delete_course(course_name)
-        if not deleted:
-            raise ValueError(f"No se pudo eliminar: El curso '{course_name}' no existe.")
+        """Baja lógica (requisitos funcionales): desactiva el curso en lugar
+        de borrarlo permanentemente, para conservar el historial."""
+        deactivated = self.repository.deactivate_course(course_name)
+        if not deactivated:
+            raise ValueError(f"No se pudo desactivar: El curso '{course_name}' no existe.")
         return True
+
+    def activate_course(self, course_name: str) -> bool:
+        activated = self.repository.activate_course(course_name)
+        if not activated:
+            raise ValueError(f"No se pudo reactivar: El curso '{course_name}' no existe.")
+        return True
+
+    def deactivate_course_by_id(self, course_id: int) -> Courses:
+        course = self.repository.deactivate_course_by_id(course_id)
+        if not course:
+            raise ValueError(f"No se pudo desactivar: no existe un curso con ID {course_id}.")
+        return course
+
+    def activate_course_by_id(self, course_id: int) -> Courses:
+        course = self.repository.activate_course_by_id(course_id)
+        if not course:
+            raise ValueError(f"No se pudo reactivar: no existe un curso con ID {course_id}.")
+        return course

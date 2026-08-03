@@ -4,6 +4,7 @@ import {
   Building2,
   Cake,
   Camera as CameraIcon,
+  Check,
   Home,
   Loader2,
   Mail,
@@ -13,6 +14,7 @@ import {
   ScanFace,
   ToggleLeft,
   User,
+  UserRound,
 } from 'lucide-react'
 import Modal from '../ui/Modal.jsx'
 import TextInput from '../ui/TextInput.jsx'
@@ -35,6 +37,12 @@ const STATUS_OPTIONS = [
   { value: 'Inactivo', label: 'Inactivo' },
 ]
 
+const TABS = [
+  { id: 'student', label: 'Datos del Alumno', icon: User },
+  { id: 'tutor', label: 'Datos del Tutor', icon: UserRound },
+  { id: 'face', label: 'Actualización de Rostro', icon: ScanFace },
+]
+
 const INITIAL_STUDENT_FORM = { name: '', lastname: '', surename: '', date_of_birth: '', status: 'Activo' }
 const INITIAL_TUTOR_FORM = {
   name: '',
@@ -48,11 +56,13 @@ const INITIAL_TUTOR_FORM = {
 }
 
 /**
- * Modal de edición completa de un alumno: datos generales, datos del tutor,
- * curso asignado y recaptura biométrica opcional. Reutiliza `WebcamCapture`
- * y `QualityChecklist` (misma silueta guía `face.png` que el enrolamiento).
+ * Modal de edición completa de un alumno, organizado en tres pestañas:
+ * 1) Datos del alumno + asignación múltiple de cursos,
+ * 2) Datos del tutor,
+ * 3) Recaptura biométrica (cámara solo al abrir esta pestaña).
  */
 export default function StudentEditModal({ studentId, courses, onClose, onSaved }) {
+  const [activeTab, setActiveTab] = useState('student')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
 
@@ -60,9 +70,8 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
   const [parentId, setParentId] = useState(null)
   const [studentForm, setStudentForm] = useState(INITIAL_STUDENT_FORM)
   const [tutorForm, setTutorForm] = useState(INITIAL_TUTOR_FORM)
-  const [courseId, setCourseId] = useState('')
-  const [initialCourseId, setInitialCourseId] = useState('')
-  const [otherCourses, setOtherCourses] = useState([])
+  const [courseIds, setCourseIds] = useState([])
+  const [initialCourseIds, setInitialCourseIds] = useState([])
 
   const [attempted, setAttempted] = useState(false)
 
@@ -79,6 +88,10 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
     let isActive = true
     setLoading(true)
     setLoadError(null)
+    setActiveTab('student')
+    setCameraOn(false)
+    setCapturedImage(null)
+    setChecks(IDLE_CHECKS)
 
     getStudentById(studentId)
       .then(async (student) => {
@@ -94,11 +107,9 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
         })
         setParentId(student.id_parent ?? null)
 
-        const studentCourses = student.courses ?? []
-        const firstCourseId = studentCourses[0] ? String(studentCourses[0].id) : ''
-        setCourseId(firstCourseId)
-        setInitialCourseId(firstCourseId)
-        setOtherCourses(studentCourses.slice(1))
+        const enrolledIds = (student.courses ?? []).map((course) => String(course.id))
+        setCourseIds(enrolledIds)
+        setInitialCourseIds(enrolledIds)
 
         if (student.id_parent) {
           const parent = await getParentById(student.id_parent)
@@ -127,10 +138,10 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
     }
   }, [studentId])
 
-  // Simula la validación de calidad en tiempo real (igual que en el
-  // enrolamiento inicial); en producción la resuelve `face_engine.py`.
+  // Simula la validación de calidad en tiempo real; solo corre mientras la
+  // pestaña de rostro está activa y la cámara está encendida.
   useEffect(() => {
-    if (!cameraOn || capturedImage) {
+    if (activeTab !== 'face' || !cameraOn || capturedImage) {
       return undefined
     }
 
@@ -144,7 +155,7 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
     )
 
     return () => timers.forEach(clearTimeout)
-  }, [cameraOn, capturedImage])
+  }, [activeTab, cameraOn, capturedImage])
 
   const allChecksPassed = CHECK_ORDER.every((key) => checks[key] === 'success')
 
@@ -163,6 +174,21 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
     setTutorForm((prev) => ({ ...prev, [field]: value }))
   }, [])
 
+  const handleToggleCourse = useCallback((courseId) => {
+    const id = String(courseId)
+    setCourseIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
+  }, [])
+
+  const handleTabChange = useCallback((tabId) => {
+    setActiveTab(tabId)
+    // Apaga la cámara al salir de la pestaña de rostro para no dejar el
+    // stream abierto mientras el usuario edita otros datos.
+    if (tabId !== 'face') {
+      setCameraOn(false)
+      setChecks(IDLE_CHECKS)
+    }
+  }, [])
+
   const handleCapture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot()
     if (imageSrc) {
@@ -172,12 +198,43 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
 
   const handleRetake = useCallback(() => setCapturedImage(null), [])
 
+  const syncCourseEnrollments = useCallback(async () => {
+    const selected = new Set(courseIds)
+    const initial = new Set(initialCourseIds)
+    const toEnroll = [...selected].filter((id) => !initial.has(id))
+    const toUnenroll = [...initial].filter((id) => !selected.has(id))
+    const failures = []
+
+    for (const id of toUnenroll) {
+      try {
+        await unenrollStudentFromCourse(studentId, Number(id))
+      } catch (err) {
+        failures.push(`baja del curso ${id}: ${err.message}`)
+      }
+    }
+
+    for (const id of toEnroll) {
+      try {
+        await enrollStudentInCourse(studentId, Number(id))
+      } catch (err) {
+        failures.push(`alta del curso ${id}: ${err.message}`)
+      }
+    }
+
+    return failures
+  }, [courseIds, initialCourseIds, studentId])
+
   const handleSave = useCallback(async () => {
     setAttempted(true)
     setSaveError(null)
     setSaveWarning(null)
 
     if (!isValid) {
+      if (Object.keys(studentErrors).length > 0) {
+        setActiveTab('student')
+      } else if (Object.keys(tutorErrors).length > 0) {
+        setActiveTab('tutor')
+      }
       return
     }
 
@@ -193,6 +250,7 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
       })
     } catch (err) {
       setSaveError({ stage: 'student', message: err.message })
+      setActiveTab('student')
       setSaving(false)
       return
     }
@@ -215,24 +273,16 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
         await updateParent(parentId, tutorPayload)
       } catch (err) {
         setSaveError({ stage: 'tutor', message: err.message })
+        setActiveTab('tutor')
         setSaving(false)
         return
       }
     }
 
     const warnings = []
-
-    if (courseId !== initialCourseId) {
-      try {
-        if (initialCourseId) {
-          await unenrollStudentFromCourse(studentId, Number(initialCourseId))
-        }
-        if (courseId) {
-          await enrollStudentInCourse(studentId, Number(courseId))
-        }
-      } catch (err) {
-        warnings.push(`No se pudo actualizar el curso asignado: ${err.message}`)
-      }
+    const enrollmentFailures = await syncCourseEnrollments()
+    if (enrollmentFailures.length > 0) {
+      warnings.push(`No se pudieron sincronizar todas las inscripciones (${enrollmentFailures.join('; ')}).`)
     }
 
     if (capturedImage) {
@@ -253,12 +303,13 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
     onSaved()
   }, [
     isValid,
+    studentErrors,
+    tutorErrors,
     studentId,
     studentForm,
     parentId,
     tutorForm,
-    courseId,
-    initialCourseId,
+    syncCourseEnrollments,
     capturedImage,
     onSaved,
   ])
@@ -283,178 +334,238 @@ export default function StudentEditModal({ studentId, courses, onClose, onSaved 
       )}
 
       {!loading && !loadError && (
-        <div className="flex flex-col gap-8">
-          <section>
-            <h3 className="mb-4 font-roboto text-sm font-semibold uppercase tracking-wide text-primary">
-              Datos del alumno
-            </h3>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <TextInput
-                label="Nombre(s)"
-                icon={User}
-                value={studentForm.name}
-                onChange={(e) => handleStudentFieldChange('name', e.target.value)}
-                error={attempted ? studentErrors.name : undefined}
-                required
-              />
-              <TextInput
-                label="Apellido paterno"
-                icon={User}
-                value={studentForm.lastname}
-                onChange={(e) => handleStudentFieldChange('lastname', e.target.value)}
-                error={attempted ? studentErrors.lastname : undefined}
-                required
-              />
-              <TextInput
-                label="Apellido materno"
-                icon={User}
-                hint="Opcional"
-                value={studentForm.surename}
-                onChange={(e) => handleStudentFieldChange('surename', e.target.value)}
-              />
-              <TextInput
-                label="Fecha de nacimiento"
-                icon={Cake}
-                type="date"
-                value={studentForm.date_of_birth}
-                onChange={(e) => handleStudentFieldChange('date_of_birth', e.target.value)}
-                error={attempted ? studentErrors.date_of_birth : undefined}
-                required
-              />
-              <SelectInput
-                label="Estatus"
-                icon={ToggleLeft}
-                value={studentForm.status}
-                onChange={(e) => handleStudentFieldChange('status', e.target.value)}
-                options={STATUS_OPTIONS}
-              />
-            </div>
-          </section>
+        <div className="flex flex-col gap-6">
+          <nav
+            className="flex flex-wrap gap-2 border-b border-gray-100 pb-4"
+            aria-label="Secciones del expediente"
+          >
+            {TABS.map((tab) => {
+              const Icon = tab.icon
+              const isActive = tab.id === activeTab
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 font-roboto text-sm font-medium
+                    transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30
+                    ${isActive ? 'bg-primary text-white' : 'text-moss hover:bg-mint'}`}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  {tab.label}
+                  {tab.id === 'face' && capturedImage && (
+                    <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                      Nueva
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
 
-          <section>
-            <h3 className="mb-4 font-roboto text-sm font-semibold uppercase tracking-wide text-primary">
-              Datos del tutor
-            </h3>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <TextInput
-                label="Nombre(s)"
-                icon={User}
-                value={tutorForm.name}
-                onChange={(e) => handleTutorFieldChange('name', e.target.value)}
-                error={attempted ? tutorErrors.name : undefined}
-                required
-              />
-              <TextInput
-                label="Apellidos"
-                icon={User}
-                value={tutorForm.lastname}
-                onChange={(e) => handleTutorFieldChange('lastname', e.target.value)}
-                error={attempted ? tutorErrors.lastname : undefined}
-                required
-              />
-              <TextInput
-                label="Correo electrónico"
-                icon={Mail}
-                type="email"
-                value={tutorForm.email}
-                onChange={(e) => handleTutorFieldChange('email', e.target.value)}
-                error={attempted ? tutorErrors.email : undefined}
-                required
-              />
-              <TextInput
-                label="Teléfono"
-                icon={Phone}
-                type="tel"
-                value={tutorForm.phone}
-                onChange={(e) => handleTutorFieldChange('phone', e.target.value)}
-                error={attempted ? tutorErrors.phone : undefined}
-                required
-              />
-              <TextInput
-                label="Calle"
-                icon={MapPin}
-                value={tutorForm.dir_street}
-                onChange={(e) => handleTutorFieldChange('dir_street', e.target.value)}
-                error={attempted ? tutorErrors.dir_street : undefined}
-                required
-              />
-              <TextInput
-                label="Colonia"
-                icon={Building2}
-                value={tutorForm.dir_col}
-                onChange={(e) => handleTutorFieldChange('dir_col', e.target.value)}
-                error={attempted ? tutorErrors.dir_col : undefined}
-                required
-              />
-              <TextInput
-                label="Número"
-                icon={Home}
-                value={tutorForm.dir_num}
-                onChange={(e) => handleTutorFieldChange('dir_num', e.target.value)}
-                error={attempted ? tutorErrors.dir_num : undefined}
-                required
-              />
-            </div>
-          </section>
-
-          <section>
-            <h3 className="mb-4 font-roboto text-sm font-semibold uppercase tracking-wide text-primary">
-              Curso asignado
-            </h3>
-            <SelectInput
-              label="Curso"
-              icon={BookOpen}
-              placeholder="Sin asignar"
-              value={courseId}
-              onChange={(e) => setCourseId(e.target.value)}
-              options={courses.map((course) => ({ value: String(course.id), label: course.name }))}
-            />
-            {otherCourses.length > 0 && (
-              <p className="mt-2 font-lato text-xs text-gray-400">
-                Este alumno también está inscrito en: {otherCourses.map((c) => c.name).join(', ')}.
-                Esas inscripciones no se modifican desde aquí.
-              </p>
-            )}
-          </section>
-
-          <section>
-            <h3 className="mb-2 font-roboto text-sm font-semibold uppercase tracking-wide text-primary">
-              Actualización de rostro
-            </h3>
-            <p className="mb-4 font-lato text-sm text-gray-500">
-              Solo captura una nueva foto si necesitas remplazar el rostro enrolado; si no
-              enciendes la cámara, se conserva el actual.
-            </p>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              <div className="lg:col-span-3">
-                <WebcamCapture
-                  ref={webcamRef}
-                  cameraOn={cameraOn}
-                  onEnableCamera={() => setCameraOn(true)}
-                  capturedImage={capturedImage}
-                  onRetake={handleRetake}
-                  allChecksPassed={allChecksPassed}
+          {activeTab === 'student' && (
+            <section className="flex flex-col gap-6">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <TextInput
+                  label="Nombre(s)"
+                  icon={User}
+                  value={studentForm.name}
+                  onChange={(e) => handleStudentFieldChange('name', e.target.value)}
+                  error={attempted ? studentErrors.name : undefined}
+                  required
+                />
+                <TextInput
+                  label="Apellido paterno"
+                  icon={User}
+                  value={studentForm.lastname}
+                  onChange={(e) => handleStudentFieldChange('lastname', e.target.value)}
+                  error={attempted ? studentErrors.lastname : undefined}
+                  required
+                />
+                <TextInput
+                  label="Apellido materno"
+                  icon={User}
+                  hint="Opcional"
+                  value={studentForm.surename}
+                  onChange={(e) => handleStudentFieldChange('surename', e.target.value)}
+                />
+                <TextInput
+                  label="Fecha de nacimiento"
+                  icon={Cake}
+                  type="date"
+                  value={studentForm.date_of_birth}
+                  onChange={(e) => handleStudentFieldChange('date_of_birth', e.target.value)}
+                  error={attempted ? studentErrors.date_of_birth : undefined}
+                  required
+                />
+                <SelectInput
+                  label="Estatus"
+                  icon={ToggleLeft}
+                  value={studentForm.status}
+                  onChange={(e) => handleStudentFieldChange('status', e.target.value)}
+                  options={STATUS_OPTIONS}
                 />
               </div>
-              <div className="flex flex-col gap-4 lg:col-span-2">
-                <QualityChecklist checks={checks} />
-                <Button
-                  variant="primary"
-                  icon={CameraIcon}
-                  disabled={!cameraOn || !allChecksPassed || Boolean(capturedImage)}
-                  onClick={handleCapture}
-                >
-                  Capturar nueva foto
-                </Button>
-                {capturedImage && (
-                  <p className="flex items-center gap-1.5 font-lato text-xs text-primary">
-                    <ScanFace className="h-3.5 w-3.5" aria-hidden="true" />
-                    Nueva foto lista: se guardará al confirmar los cambios.
+
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <h3 className="font-roboto text-sm font-semibold uppercase tracking-wide text-primary">
+                    Cursos asignados
+                  </h3>
+                </div>
+                <p className="mb-3 font-lato text-sm text-gray-500">
+                  Selecciona uno o varios cursos. Al guardar se sincronizan altas y bajas.
+                </p>
+
+                {courses.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center font-lato text-sm text-gray-400">
+                    No hay cursos disponibles para asignar.
+                  </p>
+                ) : (
+                  <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {courses.map((course) => {
+                      const id = String(course.id)
+                      const selected = courseIds.includes(id)
+                      return (
+                        <li key={id}>
+                          <label
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 transition-colors
+                              ${selected ? 'border-primary bg-mint' : 'border-gray-200 bg-white hover:border-primaryLight'}`}
+                          >
+                            <span
+                              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border
+                                ${selected ? 'border-primary bg-primary text-white' : 'border-gray-300 bg-white'}`}
+                              aria-hidden="true"
+                            >
+                              {selected && <Check className="h-3.5 w-3.5" />}
+                            </span>
+                            <input
+                              type="checkbox"
+                              className="sr-only"
+                              checked={selected}
+                              onChange={() => handleToggleCourse(id)}
+                            />
+                            <span className="font-lato text-sm text-moss">{course.name}</span>
+                          </label>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+
+                {courseIds.length > 0 && (
+                  <p className="mt-3 font-lato text-xs text-gray-400">
+                    {courseIds.length} curso{courseIds.length === 1 ? '' : 's'} seleccionado
+                    {courseIds.length === 1 ? '' : 's'}.
                   </p>
                 )}
               </div>
-            </div>
-          </section>
+            </section>
+          )}
+
+          {activeTab === 'tutor' && (
+            <section>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <TextInput
+                  label="Nombre(s)"
+                  icon={User}
+                  value={tutorForm.name}
+                  onChange={(e) => handleTutorFieldChange('name', e.target.value)}
+                  error={attempted ? tutorErrors.name : undefined}
+                  required
+                />
+                <TextInput
+                  label="Apellidos"
+                  icon={User}
+                  value={tutorForm.lastname}
+                  onChange={(e) => handleTutorFieldChange('lastname', e.target.value)}
+                  error={attempted ? tutorErrors.lastname : undefined}
+                  required
+                />
+                <TextInput
+                  label="Correo electrónico"
+                  icon={Mail}
+                  type="email"
+                  value={tutorForm.email}
+                  onChange={(e) => handleTutorFieldChange('email', e.target.value)}
+                  error={attempted ? tutorErrors.email : undefined}
+                  required
+                />
+                <TextInput
+                  label="Teléfono"
+                  icon={Phone}
+                  type="tel"
+                  value={tutorForm.phone}
+                  onChange={(e) => handleTutorFieldChange('phone', e.target.value)}
+                  error={attempted ? tutorErrors.phone : undefined}
+                  required
+                />
+                <TextInput
+                  label="Calle"
+                  icon={MapPin}
+                  value={tutorForm.dir_street}
+                  onChange={(e) => handleTutorFieldChange('dir_street', e.target.value)}
+                  error={attempted ? tutorErrors.dir_street : undefined}
+                  required
+                />
+                <TextInput
+                  label="Colonia"
+                  icon={Building2}
+                  value={tutorForm.dir_col}
+                  onChange={(e) => handleTutorFieldChange('dir_col', e.target.value)}
+                  error={attempted ? tutorErrors.dir_col : undefined}
+                  required
+                />
+                <TextInput
+                  label="Número"
+                  icon={Home}
+                  value={tutorForm.dir_num}
+                  onChange={(e) => handleTutorFieldChange('dir_num', e.target.value)}
+                  error={attempted ? tutorErrors.dir_num : undefined}
+                  required
+                />
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'face' && (
+            <section>
+              <p className="mb-4 font-lato text-sm text-gray-500">
+                Solo captura una nueva foto si necesitas remplazar el rostro enrolado; si no
+                enciendes la cámara, se conserva el actual.
+              </p>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+                <div className="lg:col-span-3">
+                  <WebcamCapture
+                    ref={webcamRef}
+                    cameraOn={cameraOn}
+                    onEnableCamera={() => setCameraOn(true)}
+                    capturedImage={capturedImage}
+                    onRetake={handleRetake}
+                    allChecksPassed={allChecksPassed}
+                  />
+                </div>
+                <div className="flex flex-col gap-4 lg:col-span-2">
+                  <QualityChecklist checks={checks} />
+                  <Button
+                    variant="primary"
+                    icon={CameraIcon}
+                    disabled={!cameraOn || !allChecksPassed || Boolean(capturedImage)}
+                    onClick={handleCapture}
+                  >
+                    Capturar nueva foto
+                  </Button>
+                  {capturedImage && (
+                    <p className="flex items-center gap-1.5 font-lato text-xs text-primary">
+                      <ScanFace className="h-3.5 w-3.5" aria-hidden="true" />
+                      Nueva foto lista: se guardará al confirmar los cambios.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
 
           {attempted && !isValid && (
             <Alert variant="error" title="Revisa los campos marcados en rojo">

@@ -1,11 +1,12 @@
-import { ClipboardCheck, LogOut, Users, UserPlus } from 'lucide-react'
+import { BookOpen, ClipboardCheck, LogOut, Users, UserPlus } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth, ROLE_ADMIN, ROLE_DOCENTE } from '../../auth/AuthContext.jsx'
 
 const NAV_ITEMS = [
   { to: '/registro-alumno', label: 'Registrar Alumno', icon: UserPlus, roles: [ROLE_ADMIN, ROLE_DOCENTE] },
   { to: '/pase-de-lista', label: 'Pase de Lista', icon: ClipboardCheck, roles: [ROLE_ADMIN, ROLE_DOCENTE] },
-  { to: '/administracion', label: 'Administración', icon: Users, roles: [ROLE_ADMIN] },
+  { to: '/administracion', label: 'Alumnos', icon: Users, roles: [ROLE_ADMIN] },
+  { to: '/cursos', label: 'Cursos', icon: BookOpen, roles: [ROLE_ADMIN] },
 ]
 
 /**

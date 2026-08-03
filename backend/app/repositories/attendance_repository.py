@@ -26,6 +26,15 @@ class AttendanceRepository:
             Attendance.date == current_date
         ).first()
 
+    # Unicidad de asistencia: un alumno puede asistir a varias clases el
+    # mismo día, pero no registrar dos veces la misma clase en esa fecha.
+    def getStudentAttendanceByDateAndCourse(self, student_id: int, current_date: date, course_id: int):
+        return self.db.query(Attendance).filter(
+            Attendance.student_id == student_id,
+            Attendance.date == current_date,
+            Attendance.course_id == course_id,
+        ).first()
+
     # Obtener todas las asistencias de un alumno en una fecha específica
     def getAttendanceByStudentAndDate(self, student_id: int, current_date: date):
         return self.db.query(Attendance).filter(

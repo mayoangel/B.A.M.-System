@@ -97,11 +97,11 @@ class AttendanceServices:
             raise ValueError("El estatus es incorrecto u obligatorio")
         if not attendance_data.get('method'):
             raise ValueError("El método de asistencia es obligatorio")
+        if not attendance_data.get('course_id'):
+            raise ValueError("El curso (course_id) es obligatorio")
 
         # RBAC: un docente solo puede registrar asistencia para cursos que imparte.
         if actor and actor.get("role") == "docente":
-            if not attendance_data.get('course_id'):
-                raise ValueError("Como docente, debes indicar el curso (course_id) de la asistencia.")
             self._assert_can_access_course(attendance_data.get('course_id'), actor)
 
         if not attendance_data.get('date'):
@@ -121,12 +121,17 @@ class AttendanceServices:
             if not employee_exists:
                 raise ValueError("El empleado ingresado no existe en el sistema")
 
-        asistencia_hoy = self.repo.getStudentAttendanceByDate(
+        # Unicidad por (alumno, fecha, curso): el mismo día puede asistir a
+        # varias clases distintas, pero no duplicar la misma clase.
+        asistencia_existente = self.repo.getStudentAttendanceByDateAndCourse(
             attendance_data.get('student_id'),
-            attendance_data.get('date')
+            attendance_data.get('date'),
+            attendance_data.get('course_id'),
         )
-        if asistencia_hoy:
-            raise ValueError("El alumno ya tiene una asistencia registrada para esa fecha")
+        if asistencia_existente:
+            raise ValueError(
+                "El alumno ya tiene una asistencia registrada para este curso en esa fecha"
+            )
 
         result = self.repo.registerAttendance(attendance_data)
 

@@ -6,6 +6,7 @@ import AppShell from './components/layout/AppShell.jsx'
 import StudentEnrollment from './components/enrollment/StudentEnrollment.jsx'
 import AttendanceSession from './components/attendance/AttendanceSession.jsx'
 import StudentManagement from './components/management/StudentManagement.jsx'
+import CourseManagement from './components/courses/CourseManagement.jsx'
 import MyChildrenPanel from './components/tutor/MyChildrenPanel.jsx'
 
 function LoginRoute() {
@@ -61,6 +62,15 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={[ROLE_ADMIN]}>
                   <StudentManagement />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="cursos"
+              element={
+                <ProtectedRoute allowedRoles={[ROLE_ADMIN]}>
+                  <CourseManagement />
                 </ProtectedRoute>
               }
             />

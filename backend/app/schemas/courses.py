@@ -9,8 +9,9 @@ class CourseSchema(Schema):
     name = fields.String(required=True, validate=validate.Length(min=2, max=100))
     description = fields.String(required=True, validate=validate.Length(min=1, max=100))
     category = fields.String(required=True, validate=short_text_validator)
-    start_date = fields.DateTime(required=True)
-    end_date = fields.DateTime(required=True)
+    # La columna en BD es DATE (no DATETIME); el formulario admin envía YYYY-MM-DD.
+    start_date = fields.Date(required=True)
+    end_date = fields.Date(required=True)
     time_duration = fields.String(required=True, validate=validate.Length(min=1, max=50))
     days_of_week = fields.String(required=True, validate=validate.Length(min=1, max=50))
     status = fields.String(required=False, validate=STATUS_ACTIVO_INACTIVO)

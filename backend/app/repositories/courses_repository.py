@@ -16,6 +16,9 @@ class CourseRepository:
     #buscar curso por nombre
     def get_course_by_name(self, courseName: str) -> Courses:
         return self.db.query(Courses).filter(Courses.name == courseName).first()
+
+    def get_course_by_id(self, course_id: int) -> Courses:
+        return self.db.query(Courses).filter(Courses.id == course_id).first()
     
      # Traer todos los cursos
     def get_all_courses(self):
@@ -35,11 +38,43 @@ class CourseRepository:
             return True
         return False
 
-    #eliminar cursos
-    def delete_course(self, courseName: str) -> bool:
-        db_course = self.get_course_by_name(courseName)
-        if db_course:
-            self.db.delete(db_course)
+    # Baja lógica por ID (preferible al nombre: evita romper URLs con "/" en el nombre).
+    def deactivate_course_by_id(self, course_id: int) -> Courses | None:
+        db_course = self.get_course_by_id(course_id)
+        if not db_course:
+            return None
+        if db_course.status != "Inactivo":
+            db_course.status = "Inactivo"
             self.db.commit()
+        return db_course
+
+    def activate_course_by_id(self, course_id: int) -> Courses | None:
+        db_course = self.get_course_by_id(course_id)
+        if not db_course:
+            return None
+        if db_course.status != "Activo":
+            db_course.status = "Activo"
+            self.db.commit()
+        return db_course
+
+    # Baja lógica: el curso no se borra de la BD (conserva historial de
+    # asistencias e inscripciones); solo pasa a "Inactivo".
+    def deactivate_course(self, courseName: str) -> bool:
+        db_course = self.get_course_by_name(courseName)
+        if not db_course:
+            return False
+        if db_course.status == "Inactivo":
             return True
-        return False
+        db_course.status = "Inactivo"
+        self.db.commit()
+        return True
+
+    def activate_course(self, courseName: str) -> bool:
+        db_course = self.get_course_by_name(courseName)
+        if not db_course:
+            return False
+        if db_course.status == "Activo":
+            return True
+        db_course.status = "Activo"
+        self.db.commit()
+        return True

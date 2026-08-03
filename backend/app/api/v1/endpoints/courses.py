@@ -61,6 +61,28 @@ def get_active_courses():
         # en vez de una página de error que el navegador bloquearía.
         return jsonify({"error": f"No se pudieron obtener los cursos activos: {e}"}), 500
 
+@courses_bp.route('/id/<int:course_id>', methods=['DELETE'])
+@admin_required
+def deactivate_course_by_id(course_id):
+    """Baja lógica por ID. Se usa ID (no nombre) para soportar nombres con '/'
+    u otros caracteres que rompen la URL (ej. 'Diseño UI/UX')."""
+    try:
+        service = CourseService(g.db)
+        course = service.deactivate_course_by_id(course_id)
+        return jsonify({"message": f"Curso '{course.name}' desactivado correctamente."}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+@courses_bp.route('/id/<int:course_id>/activate', methods=['PUT'])
+@admin_required
+def activate_course_by_id(course_id):
+    try:
+        service = CourseService(g.db)
+        course = service.activate_course_by_id(course_id)
+        return jsonify({"message": f"Curso '{course.name}' reactivado correctamente."}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
 @courses_bp.route('/<string:name>', methods=['GET'])
 @admin_required
 def get_course(name):
@@ -73,10 +95,21 @@ def get_course(name):
 
 @courses_bp.route('/<string:name>', methods=['DELETE'])
 @admin_required
-def delete_course(name):
+def deactivate_course(name):
+    """Baja lógica por nombre (legado). Preferir DELETE /courses/id/<id>."""
     try:
         service = CourseService(g.db)
         service.delete_course(name)
-        return jsonify({"message": f"Curso '{name}' eliminado correctamente."}), 200
+        return jsonify({"message": f"Curso '{name}' desactivado correctamente."}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+@courses_bp.route('/<string:name>/activate', methods=['PUT'])
+@admin_required
+def activate_course(name):
+    try:
+        service = CourseService(g.db)
+        service.activate_course(name)
+        return jsonify({"message": f"Curso '{name}' reactivado correctamente."}), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
