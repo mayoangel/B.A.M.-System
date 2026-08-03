@@ -1,22 +1,21 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
 class Students(Base):
     __tablename__ = "students"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    id_student = Column(String(50), nullable=False, unique=True)  
+    # Matrícula generada por el sistema (ver StudentService._generate_matricula);
+    # nunca se acepta un valor de matrícula proveniente del cliente.
+    id_student = Column(String(50), nullable=False, unique=True)
     name = Column(String(100), nullable=False)
     lastname = Column(String(100), nullable=False)
     surename = Column(String(100), nullable=True)
-    email = Column(String(100), nullable=False)
-    password = Column(String(255), nullable=False)
-    phone = Column(String(20), nullable=False)
-    age = Column(Integer, nullable=False)
-    dir_col = Column(String(100), nullable=False)
-    dir_street = Column(String(100), nullable=False)
-    dir_num = Column(String(100), nullable=False)   
+    # Los alumnos son menores de edad: no tienen credenciales propias ni datos
+    # de contacto/dirección independientes. Esa información vive únicamente
+    # en su tutor (Parents), referenciado por `id_parent`.
+    date_of_birth = Column(Date, nullable=False)
     status = Column(String(50), nullable=False, default="Activo")
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     id_parent = Column(Integer, ForeignKey("parents.id", ondelete="CASCADE"), nullable=False)

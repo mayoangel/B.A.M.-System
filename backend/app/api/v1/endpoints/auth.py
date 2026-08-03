@@ -8,14 +8,7 @@ from flask import jsonify
 from flask import g
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
-from flask_jwt_extended import (
-    jwt_required,
-    get_jwt_identity,
-    get_jwt
-)
-
 from app.services.auth_service import AuthService
-from app.models.employees import Employees
 
 auth_bp = Blueprint(
     "auth",
@@ -58,23 +51,16 @@ def me():
 
     employee_id = get_jwt_identity()
 
-    employee = (
-        g.db.query(Employees)
-        .filter(Employees.id == employee_id)
-        .first()
-    )
+    service = AuthService(g.db)
 
-    if not employee:
+    profile = service.get_profile(employee_id)
+
+    if not profile:
         return jsonify({
             "message": "Usuario no encontrado"
         }), 404
 
-    return jsonify({
-        "id": employee.id,
-        "name": employee.name,
-        "email": employee.email,
-        "role_id": employee.role_id
-    })
+    return jsonify(profile)
 
 
 @auth_bp.route(
@@ -86,14 +72,6 @@ def change_role():
 
     claims = get_jwt()
 
-    role_id = claims.get("role_id")
-
-    if role_id != 1:
-        return jsonify({
-            "message":
-            "Solo administradores"
-        }), 403
-
     data = request.get_json()
 
     employee_id = data.get(
@@ -104,23 +82,26 @@ def change_role():
         "role_id"
     )
 
-    employee = (
-        g.db.query(Employees)
-        .filter(
-            Employees.id == employee_id
+    service = AuthService(g.db)
+
+    try:
+        service.change_role(
+            claims.get("role_id"),
+            employee_id,
+            new_role_id
         )
-        .first()
-    )
-
-    if not employee:
+    except PermissionError as e:
         return jsonify({
-            "message":
-            "Empleado no encontrado"
+            "message": str(e)
+        }), 403
+    except ValueError as e:
+        return jsonify({
+            "message": str(e)
+        }), 400
+    except LookupError as e:
+        return jsonify({
+            "message": str(e)
         }), 404
-
-    employee.role_id = new_role_id
-
-    g.db.commit()
 
     return jsonify({
         "message":

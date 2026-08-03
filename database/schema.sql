@@ -15,7 +15,11 @@ CREATE TABLE IF NOT EXISTS parents (
     lastname VARCHAR(100) NOT NULL,
     surename VARCHAR(100) NULL,
     phone VARCHAR(50) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    dir_street VARCHAR(150) NOT NULL,
+    dir_col VARCHAR(100) NOT NULL,
+    dir_num VARCHAR(50) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS courses(
@@ -27,7 +31,7 @@ CREATE TABLE IF NOT EXISTS courses(
     end_date DATE NOT NULL,
     time_duration VARCHAR(50) NOT NULL,
     days_of_week VARCHAR(50) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'Activo',
+    status VARCHAR(50) NOT NULL DEFAULT 'Activo'
 );
 
 CREATE TABLE IF NOT EXISTS employees(
@@ -58,18 +62,16 @@ CREATE TABLE IF NOT EXISTS reports(
 
 CREATE TABLE IF NOT EXISTS students (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    id_student VARCHAR(50) NOT NULL,
+    -- Matrícula autogenerada por el backend (formato BAM-<año>-<secuencia>);
+    -- nunca se acepta un valor de matrícula enviado por el cliente.
+    id_student VARCHAR(50) NOT NULL UNIQUE,
     name VARCHAR(100) NOT NULL,
     lastname VARCHAR(100) NOT NULL,
     surename VARCHAR(100) NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    age INT NOT NULL,
-    dir_col VARCHAR(100) NOT NULL,
-    dir_street VARCHAR(150) NOT NULL,
-    dir_num VARCHAR(50) NOT NULL,
-    status VARCHAR(50) NOT NULL,
+    -- Los alumnos son menores de edad: sin credenciales ni contacto propio;
+    -- esos datos viven exclusivamente en su tutor (parents).
+    date_of_birth DATE NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Activo',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     id_parent INT NOT NULL,
     FOREIGN KEY (id_parent) REFERENCES parents (id) ON DELETE RESTRICT

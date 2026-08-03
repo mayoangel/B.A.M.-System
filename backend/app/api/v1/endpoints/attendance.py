@@ -1,11 +1,18 @@
 from flask import Blueprint, request, jsonify, g
-from app.services.attendance_services import AttendanceServices
+from marshmallow import ValidationError
+from app.services.attendance_service import AttendanceServices
+from app.schemas.attendance import AttendanceSchema
 
 attendance_bp = Blueprint('attendance', __name__, url_prefix='/attendance')
+attendance_schema = AttendanceSchema()
 
 @attendance_bp.route('/', methods=['POST'])
 def record_attendance():
     data = request.get_json() or {}
+    try:
+        attendance_schema.load(data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de asistencia inválidos.", "details": err.messages}), 400
     try:
         service = AttendanceServices(g.db)
         result = service.registerAttendances(data)

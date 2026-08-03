@@ -1,11 +1,18 @@
 from flask import Blueprint, request, jsonify, g
-from app.services.employee_services import EmployeeService
+from marshmallow import ValidationError
+from app.services.employee_service import EmployeeService
+from app.schemas.employees import EmployeeSchema
 
 employees_bp = Blueprint('employees', __name__)
+employee_schema = EmployeeSchema()
 
 @employees_bp.route('/', methods=['POST'])
 def register_employee():
     data = request.get_json() or {}
+    try:
+        employee_schema.load(data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de empleado inválidos.", "details": err.messages}), 400
     try:
         service = EmployeeService(g.db)
         result = service.register_employee(data)

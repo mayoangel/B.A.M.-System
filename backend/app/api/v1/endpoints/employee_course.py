@@ -1,11 +1,35 @@
 from flask import Blueprint, request, jsonify, g
-from app.services.employeecourse_services import EmployeeCourseService
+from marshmallow import ValidationError
+from app.services.employee_course_service import EmployeeCourseService
+from app.schemas.employee_course import EmployeeCourseSchema
 
 employee_course_bp = Blueprint('employee_course', __name__)
+employee_course_schema = EmployeeCourseSchema()
+
+@employee_course_bp.route('/course/<int:course_id>', methods=['GET'])
+def get_employees_by_course(course_id):
+    """Empleados/docentes asignados a un curso (usado para mostrar el maestro
+    titular en la pantalla de Pase de Lista)."""
+    try:
+        service = EmployeeCourseService(g.db)
+        employees = service.get_employees_for_course(course_id)
+        return jsonify([{
+            "id": e.id,
+            "id_employee": e.id_employee,
+            "name": e.name,
+            "lastname": e.lastname,
+            "email": e.email,
+        } for e in employees]), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
 @employee_course_bp.route('/assign', methods=['POST'])
 def assign_course_to_employee():
     data = request.get_json() or {}
+    try:
+        employee_course_schema.load(data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos inválidos.", "details": err.messages}), 400
     employee_id = data.get("employee_id")
     course_id = data.get("course_id")
     try:
@@ -18,6 +42,10 @@ def assign_course_to_employee():
 @employee_course_bp.route('/unassign', methods=['DELETE'])
 def unassign_course_from_employee():
     data = request.get_json() or {}
+    try:
+        employee_course_schema.load(data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos inválidos.", "details": err.messages}), 400
     employee_id = data.get("employee_id")
     course_id = data.get("course_id")
     try:

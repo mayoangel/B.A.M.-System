@@ -1,8 +1,11 @@
 from flask import Blueprint, jsonify, request
+from marshmallow import ValidationError
 from app.core.database import get_db
-from app.services.non_working_days_services import NonWorkingDaysService
+from app.services.non_working_days_service import NonWorkingDaysService
+from app.schemas.non_working_days import NonWorkingDaySchema
 
 non_working_days_bp = Blueprint('non_working_days', __name__, url_prefix='/api/v1/calendar')
+non_working_day_schema = NonWorkingDaySchema()
 
 @non_working_days_bp.route('/', methods=['GET'])
 def get_all_days():
@@ -19,11 +22,15 @@ def get_all_days():
 @non_working_days_bp.route('/', methods=['POST'])
 def create_day():
     data = request.get_json() or {}
+    try:
+        # Se valida el formato (fecha ISO, descripción no vacía), pero se conserva
+        # `date_str` como texto porque `NonWorkingDaysService` lo parsea internamente.
+        non_working_day_schema.load(data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos inválidos.", "details": err.messages}), 400
+
     date_str = data.get("date")
     description = data.get("description")
-
-    if not date_str or not description:
-        return jsonify({"error": "Los campos 'date' y 'description' son obligatorios."}), 400
 
     db = get_db()
     try:

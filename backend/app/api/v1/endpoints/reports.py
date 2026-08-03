@@ -1,13 +1,20 @@
 from flask import Blueprint, request, jsonify
+from marshmallow import ValidationError
 from app.core.database import get_db
-from app.services.report_services import ReportService
+from app.services.report_service import ReportService
+from app.schemas.reports import ReportSchema
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
+report_schema = ReportSchema()
 
 @reports_bp.route('/', methods=['POST'])
 def create_report():
     db = get_db()
     report_data = request.get_json() or {}
+    try:
+        report_schema.load(report_data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de reporte inválidos.", "details": err.messages}), 400
     try:
         service = ReportService(db)
         result = service.register_report(report_data)
@@ -60,6 +67,10 @@ def get_report(name):
 def update_report(name):
     db = get_db()
     new_data = request.get_json() or {}
+    try:
+        report_schema.load(new_data, partial=True)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de reporte inválidos.", "details": err.messages}), 400
     try:
         service = ReportService(db)
         service.update_report(name, new_data)

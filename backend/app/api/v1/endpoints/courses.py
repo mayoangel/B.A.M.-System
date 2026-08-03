@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify, g
-from app.services.course_services import CourseService
+from marshmallow import ValidationError
+from app.services.course_service import CourseService
+from app.schemas.courses import CourseSchema
 
 courses_bp = Blueprint('courses', __name__)
+course_schema = CourseSchema()
 
 def serialize_course(course):
     return {
@@ -19,6 +22,10 @@ def serialize_course(course):
 @courses_bp.route('/', methods=['POST'])
 def create_course():
     data = request.get_json() or {}
+    try:
+        course_schema.load(data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de curso inválidos.", "details": err.messages}), 400
     try:
         service = CourseService(g.db)
         result = service.register_course(data)
@@ -43,6 +50,11 @@ def get_active_courses():
         return jsonify([serialize_course(c) for c in courses]), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        # Cubre errores no previstos (ej. base de datos no disponible) para que
+        # el frontend siempre reciba una respuesta JSON con encabezados CORS,
+        # en vez de una página de error que el navegador bloquearía.
+        return jsonify({"error": f"No se pudieron obtener los cursos activos: {e}"}), 500
 
 @courses_bp.route('/<string:name>', methods=['GET'])
 def get_course(name):

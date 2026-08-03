@@ -1,13 +1,20 @@
 from flask import Blueprint, request, jsonify
+from marshmallow import ValidationError
 from app.core.database import get_db
-from app.services.role_services import RoleService
+from app.services.role_service import RoleService
+from app.schemas.role import RoleSchema
 
 roles_bp = Blueprint('roles', __name__, url_prefix='/roles')
+role_schema = RoleSchema()
 
 @roles_bp.route('/', methods=['POST'])
 def create_role():
     db = get_db()
     role_data = request.get_json() or {}
+    try:
+        role_schema.load(role_data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de rol inválidos.", "details": err.messages}), 400
     try:
         service = RoleService(db)
         role = service.create_role(role_data)
@@ -43,6 +50,10 @@ def get_all_roles():
 def update_role(name):
     db = get_db()
     new_data = request.get_json() or {}
+    try:
+        role_schema.load(new_data, partial=True)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de rol inválidos.", "details": err.messages}), 400
     try:
         service = RoleService(db)
         service.update_Role(name, new_data)

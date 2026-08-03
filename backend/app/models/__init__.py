@@ -11,3 +11,4 @@ from app.models.biometric_information import BiometricInformation
 from app.models.employee_course import EmployeeCourse
 from app.models.student_courses import StudentCourses
 from app.models.student_tutor import StudentTutor
+from app.models.non_working_days import NonWorkingDays

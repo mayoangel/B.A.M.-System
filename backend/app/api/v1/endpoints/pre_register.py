@@ -1,13 +1,20 @@
 from flask import Blueprint, request, jsonify
+from marshmallow import ValidationError
 from app.core.database import get_db
-from app.services.preregister_services import PreRegisterService
+from app.services.pre_register_service import PreRegisterService
+from app.schemas.pre_register import PreRegisterSchema
 
 pre_register_bp = Blueprint('pre_register', __name__, url_prefix='/pre-register')
+pre_register_schema = PreRegisterSchema()
 
 @pre_register_bp.route('/', methods=['POST'])
 def create_pre_register():
     db = get_db()
     pre_data = request.get_json() or {}
+    try:
+        pre_register_schema.load(pre_data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de pre-registro inválidos.", "details": err.messages}), 400
     try:
         service = PreRegisterService(db)
         result = service.create_pre_register(pre_data)

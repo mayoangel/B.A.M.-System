@@ -1,13 +1,20 @@
 from flask import Blueprint, request, jsonify
+from marshmallow import ValidationError
 from app.core.database import get_db
-from app.services.studenttutor_services import StudentTutorService
+from app.services.student_tutor_service import StudentTutorService
+from app.schemas.student_tutor import StudentTutorSchema
 
 student_tutor_bp = Blueprint('student_tutor', __name__, url_prefix='/tutor-assignments')
+student_tutor_schema = StudentTutorSchema()
 
 @student_tutor_bp.route('/', methods=['POST'])
 def assign_tutor():
     db = get_db()
     assignment_data = request.get_json() or {}
+    try:
+        student_tutor_schema.load(assignment_data)
+    except ValidationError as err:
+        return jsonify({"error": "Datos de asignación inválidos.", "details": err.messages}), 400
     try:
         service = StudentTutorService(db)
         result = service.assign_tutor(assignment_data)
