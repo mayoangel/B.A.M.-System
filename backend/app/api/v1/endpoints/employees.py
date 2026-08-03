@@ -2,11 +2,13 @@ from flask import Blueprint, request, jsonify, g
 from marshmallow import ValidationError
 from app.services.employee_service import EmployeeService
 from app.schemas.employees import EmployeeSchema
+from app.core.permissions import admin_required
 
 employees_bp = Blueprint('employees', __name__)
 employee_schema = EmployeeSchema()
 
 @employees_bp.route('/', methods=['POST'])
+@admin_required
 def register_employee():
     data = request.get_json() or {}
     try:
@@ -21,6 +23,7 @@ def register_employee():
         return jsonify({"error": str(e)}), 400
     
 @employees_bp.route('/', methods=['GET'])
+@admin_required
 def get_all_employees():
     try:
         service = EmployeeService(g.db)
@@ -38,6 +41,7 @@ def get_all_employees():
         return jsonify({"error": str(e)}), 500
 
 @employees_bp.route('/role/<int:role_id>', methods=['GET'])
+@admin_required
 def get_employees_by_role(role_id):
     try:
         service = EmployeeService(g.db)
@@ -55,6 +59,7 @@ def get_employees_by_role(role_id):
         return jsonify({"error": str(e)}), 400
 
 @employees_bp.route('/<string:name>', methods=['GET'])
+@admin_required
 def get_employee(name):
     try:
         service = EmployeeService(g.db)

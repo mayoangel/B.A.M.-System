@@ -31,10 +31,15 @@ class ParentService:
             raise ValueError(f"El tutor/padre '{parent_name}' no fue encontrado.")
         return parent
 
-    def get_parent_by_id(self, parent_id: int) -> Parents:
+    def get_parent_by_id(self, parent_id: int, actor: dict | None = None) -> Parents:
         parent = self.repository.get_parent_by_id(parent_id)
         if not parent:
             raise ValueError(f"No se encontró al tutor con ID {parent_id}.")
+
+        # RBAC: un tutor solo puede consultar su propio expediente.
+        if actor and actor.get("role") == "tutor" and actor.get("id") != parent_id:
+            raise PermissionError("Solo puedes consultar tu propia información de tutor.")
+
         return parent
 
     def update_parent(self, parent_name: str, new_data: dict) -> bool:

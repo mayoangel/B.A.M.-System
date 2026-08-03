@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from marshmallow import ValidationError
 from app.core.database import get_db
+from app.core.permissions import admin_required, staff_required, authenticated_required
 from app.services.student_service import StudentService
 from app.schemas.students import StudentSchema
 
@@ -32,6 +33,7 @@ def _serialize_student_detailed(s):
 
 
 @students_bp.route('/', methods=['POST'])
+@staff_required
 def register_student():
     db = get_db()
     student_data = request.get_json() or {}
@@ -41,38 +43,45 @@ def register_student():
         return jsonify({"error": "Datos de alumno inválidos.", "details": err.messages}), 400
     try:
         service = StudentService(db)
-        result = service.register_student(student_data)
+        result = service.register_student(student_data, actor=g.current_actor)
         return jsonify({
             "message": f"Alumno '{result.name}' registrado con éxito.",
             "id": result.id,
             "id_student": result.id_student,
         }), 201
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     
 @students_bp.route('/', methods=['GET'])
+@authenticated_required
 def get_all_students():
     db = get_db()
     try:
         service = StudentService(db)
-        students = service.list_all_students_detailed()
+        students = service.list_all_students_detailed(actor=g.current_actor)
         return jsonify([_serialize_student_detailed(s) for s in students]), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @students_bp.route('/id/<int:student_id>', methods=['GET'])
+@authenticated_required
 def get_student_by_id(student_id):
     db = get_db()
     try:
         service = StudentService(db)
-        student = service.get_student_by_id(student_id)
+        student = service.get_student_by_id(student_id, actor=g.current_actor)
         return jsonify(_serialize_student_detailed(student)), 200
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
 
 
 @students_bp.route('/id/<int:student_id>', methods=['PUT'])
+@admin_required
 def update_student_by_id(student_id):
     db = get_db()
     new_data = request.get_json() or {}
@@ -89,6 +98,7 @@ def update_student_by_id(student_id):
 
 
 @students_bp.route('/id/<int:student_id>', methods=['DELETE'])
+@admin_required
 def delete_student_by_id(student_id):
     db = get_db()
     try:
@@ -99,11 +109,12 @@ def delete_student_by_id(student_id):
         return jsonify({"error": str(e)}), 400
 
 @students_bp.route('/course/<int:course_id>', methods=['GET'])
+@staff_required
 def get_students_by_course(course_id):
     db = get_db()
     try:
         service = StudentService(db)
-        students = service.list_students_by_course(course_id)
+        students = service.list_students_by_course(course_id, actor=g.current_actor)
         return jsonify([{
             "id": s.id,
             "id_student": s.id_student,
@@ -112,10 +123,13 @@ def get_students_by_course(course_id):
             "date_of_birth": str(s.date_of_birth),
             "status": s.status
         } for s in students]), 200
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
 @students_bp.route('/<string:name>', methods=['GET'])
+@admin_required
 def get_student(name):
     db = get_db()
     try:
@@ -133,6 +147,7 @@ def get_student(name):
         return jsonify({"error": str(e)}), 404
 
 @students_bp.route('/<string:name>', methods=['PUT'])
+@admin_required
 def update_student(name):
     db = get_db()
     new_data = request.get_json() or {}
@@ -148,6 +163,7 @@ def update_student(name):
         return jsonify({"error": str(e)}), 400
 
 @students_bp.route('/<string:name>', methods=['DELETE'])
+@admin_required
 def delete_student(name):
     db = get_db()
     try:

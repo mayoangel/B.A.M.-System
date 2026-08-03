@@ -10,6 +10,14 @@ export function getCourseAttendanceByDate(courseId, isoDate) {
 }
 
 /**
+ * Historial completo de asistencia de un alumno. El backend filtra el
+ * acceso por rol (RBAC): un Tutor solo puede consultar la de sus hijos.
+ */
+export function getStudentAttendance(studentId) {
+  return apiGet(`/attendance/student/${studentId}`)
+}
+
+/**
  * Registra la asistencia de un alumno. `payload` debe respetar
  * `AttendanceSchema` (backend/app/schemas/attendance.py):
  * student_id, course_id, status, method, y opcionalmente date/time/employee_id.

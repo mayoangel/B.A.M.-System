@@ -5,10 +5,13 @@ INSERT INTO role (name, description) VALUES
 ('Profesor', 'Control de asistencia y gestión de cursos'),
 ('Prefecto', 'Encargado de la toma de asistencia biométrica');
 
+-- NOTA (RBAC/login): las contraseñas de todas las cuentas semilla (tutores y
+-- empleados) son el hash bcrypt de "Bam2026!". Se documentan en
+-- backend/README.md para pruebas locales de autenticación.
 INSERT INTO parents (name, lastname, surename, phone, email, password, dir_street, dir_col, dir_num) VALUES
-('Carlos', 'Mendoza', 'Ruiz', '5551234567', 'carlos.mendoza@mail.com', '$2y$10$parent1', 'Av. Juárez', 'Centro', '12'),
-('Gabriela', 'Espinoza', 'Luna', '5557654321', 'gabriela.espinoza@mail.com', '$2y$10$parent2', 'Calle Olivo', 'Del Valle', '45'),
-('Manuel', 'Castro', 'Ortiz', '5559876543', 'manuel.castro@mail.com', '$2y$10$parent3', 'Calle Colima', 'Roma', '110');
+('Carlos', 'Mendoza', 'Ruiz', '5551234567', 'carlos.mendoza@mail.com', '$2b$12$RnR8iTGBRxpf68hoFIQwk.ZzABbzhBUyKJy7F2uiAHDH0XcEwhKZW', 'Av. Juárez', 'Centro', '12'),
+('Gabriela', 'Espinoza', 'Luna', '5557654321', 'gabriela.espinoza@mail.com', '$2b$12$dxWKw9k.ki7dmsP4rKh9fOMt9FjhB4i6MS1TfDQZZ7qST9eRsAYxO', 'Calle Olivo', 'Del Valle', '45'),
+('Manuel', 'Castro', 'Ortiz', '5559876543', 'manuel.castro@mail.com', '$2b$12$46anHMm5NrSukM24Jk7K8uIYh/JwYLQ83NafgeXbHuaBurjjG0hD2', 'Calle Colima', 'Roma', '110');
 
 INSERT INTO courses (name, description, category, start_date, end_date, time_duration) VALUES
 ('Programación en Python', 'Curso básico desde cero', 'Tecnología', '2026-01-15', '2026-06-15', '80 horas'),
@@ -16,9 +19,9 @@ INSERT INTO courses (name, description, category, start_date, end_date, time_dur
 ('Base de Datos SQL', 'Diseño y optimización de consultas', 'Tecnología', '2026-03-01', '2026-07-01', '60 horas');
 
 INSERT INTO employees (id_employee, name, lastname, surename, email, password, phone, age, status, dir_street, dir_col, dir_num, role_id) VALUES
-(1001, 'Ana', 'Gomez', 'Pérez', 'ana.gomez@bam.com', '$2y$10$xyz123', '5551112223', 35, 'Activo', 'Av. Reforma', 'Centro', '102', 1), 
-(1002, 'Roberto', 'Sánchez', 'Díaz', 'roberto.sanchez@bam.com', '$2y$10$xyz456', '5553334445', 42, 'Activo', 'Calle Juarez', 'Del Valle', '405', 2), 
-(1003, 'Lucía', 'Torres', 'Marín', 'lucia.torres@bam.com', '$2y$10$xyz789', '5555556667', 28, 'Activo', 'Av. Insurgentes', 'Roma', '78', 3);
+(1001, 'Ana', 'Gomez', 'Pérez', 'ana.gomez@bam.com', '$2b$12$u41JnNd8C58LXv2bpsyPn.tXhvRxV7viGOt4iS6scre2zFyKVbDTS', '5551112223', 35, 'Activo', 'Av. Reforma', 'Centro', '102', 1), 
+(1002, 'Roberto', 'Sánchez', 'Díaz', 'roberto.sanchez@bam.com', '$2b$12$Y3kwo0O04lsrgVOc77BX/uD8xfTwCEcWphPR8xMNN8CM2TwtxfdvW', '5553334445', 42, 'Activo', 'Calle Juarez', 'Del Valle', '405', 2), 
+(1003, 'Lucía', 'Torres', 'Marín', 'lucia.torres@bam.com', '$2b$12$nFjOgKo.NZniKillccrnOOWUWUjMV6XVhhHN0Zn1RdkRaGqaGIuIC', '5555556667', 28, 'Activo', 'Av. Insurgentes', 'Roma', '78', 3);
 
 INSERT INTO pre_register (name, lastname, surename, email, phone, course_id) VALUES
 ('Valeria', 'Rojas', 'Solís', 'valeria.rojas@mail.com', '5554443322', 1),

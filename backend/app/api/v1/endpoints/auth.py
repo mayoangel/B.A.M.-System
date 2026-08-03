@@ -1,14 +1,7 @@
-
-
-######### LO AGREGUE PARA EL REQUIRIEMIENTO 5   ##########
-
-from flask import Blueprint
-from flask import request
-from flask import jsonify
-from flask import g
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from flask import Blueprint, request, jsonify, g
 
 from app.services.auth_service import AuthService
+from app.core.permissions import admin_required, authenticated_required
 
 auth_bp = Blueprint(
     "auth",
@@ -22,10 +15,15 @@ auth_bp = Blueprint(
 )
 def login():
 
-    data = request.get_json()
+    data = request.get_json() or {}
 
     email = data.get("email")
     password = data.get("password")
+
+    if not email or not password:
+        return jsonify({
+            "error": "Correo y contraseña son obligatorios."
+        }), 400
 
     service = AuthService(g.db)
 
@@ -36,7 +34,7 @@ def login():
 
     if not result:
         return jsonify({
-            "message": "Credenciales inválidas"
+            "error": "Credenciales inválidas."
         }), 401
 
     return jsonify(result), 200
@@ -46,18 +44,16 @@ def login():
     "/me",
     methods=["GET"]
 )
-@jwt_required()
+@authenticated_required
 def me():
-
-    employee_id = get_jwt_identity()
 
     service = AuthService(g.db)
 
-    profile = service.get_profile(employee_id)
+    profile = service.get_profile(g.current_actor)
 
     if not profile:
         return jsonify({
-            "message": "Usuario no encontrado"
+            "error": "Usuario no encontrado"
         }), 404
 
     return jsonify(profile)
@@ -67,12 +63,10 @@ def me():
     "/change-role",
     methods=["PUT"]
 )
-@jwt_required()
+@admin_required
 def change_role():
 
-    claims = get_jwt()
-
-    data = request.get_json()
+    data = request.get_json() or {}
 
     employee_id = data.get(
         "employee_id"
@@ -86,21 +80,21 @@ def change_role():
 
     try:
         service.change_role(
-            claims.get("role_id"),
+            g.current_actor["role"],
             employee_id,
             new_role_id
         )
     except PermissionError as e:
         return jsonify({
-            "message": str(e)
+            "error": str(e)
         }), 403
     except ValueError as e:
         return jsonify({
-            "message": str(e)
+            "error": str(e)
         }), 400
     except LookupError as e:
         return jsonify({
-            "message": str(e)
+            "error": str(e)
         }), 404
 
     return jsonify({
@@ -109,26 +103,11 @@ def change_role():
     })
 
 
-##ESTE es para que el frontend sepa que mostrar en el menu dependieno su rol
-@auth_bp.route("/profile", methods=["GET"])
-@jwt_required()
-def profile():
-
-    claims = get_jwt()
-
-    return {
-        "employee_id": get_jwt_identity(),
-        "name": claims.get("name"),
-        "role_id": claims.get("role_id")
-    }, 200
-
-
-
 @auth_bp.route(
     "/logout",
     methods=["POST"]
 )
-@jwt_required()
+@authenticated_required
 def logout():
 
     return jsonify({

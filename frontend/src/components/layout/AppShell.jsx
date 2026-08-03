@@ -1,23 +1,22 @@
-import { useState } from 'react'
-import { ClipboardCheck, Users, UserPlus } from 'lucide-react'
-import StudentEnrollment from '../enrollment/StudentEnrollment.jsx'
-import AttendanceSession from '../attendance/AttendanceSession.jsx'
-import StudentManagement from '../management/StudentManagement.jsx'
+import { ClipboardCheck, LogOut, Users, UserPlus } from 'lucide-react'
+import { NavLink, Outlet } from 'react-router-dom'
+import { useAuth, ROLE_ADMIN, ROLE_DOCENTE } from '../../auth/AuthContext.jsx'
 
-const TABS = [
-  { id: 'enrollment', label: 'Registro de Alumno', icon: UserPlus },
-  { id: 'attendance', label: 'Pase de Lista', icon: ClipboardCheck },
-  { id: 'management', label: 'Administración', icon: Users },
+const NAV_ITEMS = [
+  { to: '/registro-alumno', label: 'Registrar Alumno', icon: UserPlus, roles: [ROLE_ADMIN, ROLE_DOCENTE] },
+  { to: '/pase-de-lista', label: 'Pase de Lista', icon: ClipboardCheck, roles: [ROLE_ADMIN, ROLE_DOCENTE] },
+  { to: '/administracion', label: 'Administración', icon: Users, roles: [ROLE_ADMIN] },
 ]
 
 /**
- * Cascarón de la aplicación: encabezado con el logo/marca y la navegación
- * entre los módulos principales. No hay enrutador instalado (no era
- * necesario para el alcance actual): la pantalla activa se controla con un
- * simple estado local.
+ * Cascarón de la aplicación: encabezado con el logo/marca, navegación entre
+ * módulos (renderizada dinámicamente según el rol activo, RBAC) y botón de
+ * cerrar sesión. El contenido de cada pantalla llega vía `<Outlet />` del
+ * enrutador (`react-router-dom`).
  */
 export default function AppShell() {
-  const [activeTab, setActiveTab] = useState('enrollment')
+  const { user, logout } = useAuth()
+  const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(user?.role))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -28,32 +27,48 @@ export default function AppShell() {
             <span className="font-roboto text-lg font-bold text-moss">B.A.M. System</span>
           </div>
 
-          <nav className="flex gap-2">
-            {TABS.map((tab) => {
-              const Icon = tab.icon
-              const isActive = tab.id === activeTab
+          <nav className="flex flex-wrap items-center gap-2">
+            {visibleItems.map((item) => {
+              const Icon = item.icon
               return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 font-roboto text-sm font-medium
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `inline-flex items-center gap-2 rounded-lg px-4 py-2 font-roboto text-sm font-medium
                     transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30
-                    ${isActive ? 'bg-primary text-white' : 'text-moss hover:bg-mint'}`}
+                    ${isActive ? 'bg-primary text-white' : 'text-moss hover:bg-mint'}`
+                  }
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
-                  {tab.label}
-                </button>
+                  {item.label}
+                </NavLink>
               )
             })}
           </nav>
+
+          <div className="flex items-center gap-3 border-l border-gray-100 pl-4">
+            <div className="text-right">
+              <p className="font-roboto text-sm font-semibold text-moss">{user?.name}</p>
+              <p className="font-lato text-xs capitalize text-gray-400">{user?.role}</p>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              title="Cerrar sesión"
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 font-roboto text-sm font-medium
+                text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none
+                focus-visible:ring-2 focus-visible:ring-red-200"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </header>
 
       <main>
-        {activeTab === 'enrollment' && <StudentEnrollment />}
-        {activeTab === 'attendance' && <AttendanceSession />}
-        {activeTab === 'management' && <StudentManagement />}
+        <Outlet />
       </main>
     </div>
   )

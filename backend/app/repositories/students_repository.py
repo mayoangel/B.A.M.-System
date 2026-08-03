@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from app.models.students import Students
 from app.models.student_courses import StudentCourses
+from app.models.employee_course import EmployeeCourse
 
 class StudentRepository:
     def __init__(self, db: Session):
@@ -34,6 +35,44 @@ class StudentRepository:
             .join(StudentCourses, Students.id == StudentCourses.student_id)\
             .filter(StudentCourses.course_id == course_id)\
             .order_by(Students.name.asc()).all()
+
+    # RBAC (Tutor): hijos de un tutor específico, con tutor/cursos precargados.
+    def get_students_with_relations_by_parent(self, parent_id: int) -> list[Students]:
+        return (
+            self.db.query(Students)
+            .options(joinedload(Students.parent), joinedload(Students.courses))
+            .filter(Students.id_parent == parent_id)
+            .order_by(Students.name.asc())
+            .all()
+        )
+
+    # RBAC (Docente): alumnos inscritos en cualquiera de los cursos que
+    # imparte el docente, con tutor/cursos precargados. `distinct()` evita
+    # duplicados cuando un alumno comparte varios cursos con el mismo docente.
+    def get_students_with_relations_by_employee(self, employee_id: int) -> list[Students]:
+        return (
+            self.db.query(Students)
+            .options(joinedload(Students.parent), joinedload(Students.courses))
+            .join(StudentCourses, StudentCourses.student_id == Students.id)
+            .join(EmployeeCourse, EmployeeCourse.course_id == StudentCourses.course_id)
+            .filter(EmployeeCourse.employee_id == employee_id)
+            .order_by(Students.name.asc())
+            .distinct()
+            .all()
+        )
+
+    # RBAC (Docente): ¿el alumno está inscrito en algún curso que imparte este docente?
+    def is_student_in_employee_courses(self, student_id: int, employee_id: int) -> bool:
+        return (
+            self.db.query(StudentCourses)
+            .join(EmployeeCourse, EmployeeCourse.course_id == StudentCourses.course_id)
+            .filter(
+                StudentCourses.student_id == student_id,
+                EmployeeCourse.employee_id == employee_id,
+            )
+            .first()
+            is not None
+        )
 
     # Buscar estudiante por nombre
     def getStudentByName(self, studentName: str) -> Students:

@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify, g
 from marshmallow import ValidationError
 from app.services.biometric_service import BiometricService
+from app.services.student_service import StudentService
 from app.services.biometric_exceptions import BiometricError
 from app.schemas.biometric_information import BiometricInformationSchema
+from app.core.permissions import admin_required, staff_required
 
 biometric_bp = Blueprint('biometric', __name__)
 biometric_schema = BiometricInformationSchema()
@@ -22,6 +24,7 @@ def _status_for(error: BiometricError) -> int:
 
 
 @biometric_bp.route('/', methods=['POST'])
+@admin_required
 def register_biometric():
     """Alta manual de un vector ya calculado externamente (uso administrativo)."""
     data = request.get_json() or {}
@@ -40,6 +43,7 @@ def register_biometric():
 
 
 @biometric_bp.route('/enroll', methods=['POST'])
+@staff_required
 def enroll_user():
     """RF-02: enrola el rostro de un usuario a partir de una foto capturada por la cámara."""
     image_file = request.files.get('image')
@@ -51,6 +55,11 @@ def enroll_user():
         return jsonify({"error": "Se requiere el campo 'user_id'."}), 400
 
     try:
+        # RBAC: un docente solo puede enrolar el rostro de alumnos inscritos
+        # en cursos que él mismo imparte.
+        if g.current_actor.get("role") == "docente":
+            StudentService(g.db).assert_actor_can_access_student(user_id, g.current_actor)
+
         service = BiometricService(g.db)
         result = service.enroll_user(image_file.read(), user_id)
         return jsonify({
@@ -58,6 +67,8 @@ def enroll_user():
             "id": result.id,
             "student_id": result.student_id
         }), 201
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except BiometricError as e:
         return jsonify({"error": str(e)}), _status_for(e)
     except ValueError as e:
@@ -65,6 +76,7 @@ def enroll_user():
 
 
 @biometric_bp.route('/identify', methods=['POST'])
+@staff_required
 def identify_user():
     """RF-03: identifica en tiempo real a la persona frente a la cámara para pasar asistencia."""
     image_file = request.files.get('image')
@@ -83,6 +95,7 @@ def identify_user():
 
 
 @biometric_bp.route('/student/<int:student_id>', methods=['GET'])
+@admin_required
 def get_biometric_by_student(student_id):
     try:
         service = BiometricService(g.db)
@@ -93,6 +106,7 @@ def get_biometric_by_student(student_id):
 
 
 @biometric_bp.route('/student/<int:student_id>', methods=['DELETE'])
+@admin_required
 def delete_biometric(student_id):
     try:
         service = BiometricService(g.db)

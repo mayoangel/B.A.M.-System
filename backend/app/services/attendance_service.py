@@ -3,6 +3,7 @@ from datetime import date, datetime
 from app.repositories.attendance_repository import AttendanceRepository
 from app.repositories.students_repository import StudentRepository
 from app.repositories.employees_repository import EmployeeRepository
+from app.repositories.employee_course_repository import EmployeeCourseRepository
 from app.repositories.student_tutor_repository import StudentTutorRepository
 from app.services.notification_service import NotificationService
 from app.models.attendance import Attendance
@@ -14,8 +15,34 @@ class AttendanceServices:
         self.repo = AttendanceRepository(db)
         self.student_repo = StudentRepository(db)
         self.employee_repo = EmployeeRepository(db)
+        self.employee_course_repo = EmployeeCourseRepository(db)
         self.student_tutor_repo = StudentTutorRepository(db)
         self.notification_service = NotificationService()
+
+    # --- RBAC: helpers de autorización por fila (ver core/permissions.py) ---
+
+    def _assert_can_access_course(self, course_id: int, actor: dict | None) -> None:
+        if not actor or actor.get("role") == "admin":
+            return
+        if actor.get("role") == "docente":
+            if not self.employee_course_repo.is_employee_assigned_to_course(actor["id"], course_id):
+                raise PermissionError("Solo puedes acceder a la asistencia de cursos que impartes.")
+            return
+        raise PermissionError("No tienes permisos para acceder a la asistencia de este curso.")
+
+    def _assert_can_access_student_attendance(self, student_id: int, actor: dict | None) -> None:
+        if not actor or actor.get("role") == "admin":
+            return
+        if actor.get("role") == "docente":
+            if not self.student_repo.is_student_in_employee_courses(student_id, actor["id"]):
+                raise PermissionError("Solo puedes acceder a la asistencia de alumnos de tus cursos.")
+            return
+        if actor.get("role") == "tutor":
+            student = self.student_repo.getStudentByPrimaryKey(student_id)
+            if not student or student.id_parent != actor["id"]:
+                raise PermissionError("Solo puedes acceder a la asistencia de tus propios hijos.")
+            return
+        raise PermissionError("No tienes permisos para acceder a esta asistencia.")
 
     def _parse_date(self, value):
         if isinstance(value, date):
@@ -63,13 +90,19 @@ class AttendanceServices:
 
         return {"student_id": student_id, "total_unjustified": total}
 
-    def registerAttendances(self, attendance_data: dict):
+    def registerAttendances(self, attendance_data: dict, actor: dict | None = None):
         if not attendance_data.get('student_id'):
             raise ValueError("El ID del estudiante es obligatorio")
         if not attendance_data.get('status'):
             raise ValueError("El estatus es incorrecto u obligatorio")
         if not attendance_data.get('method'):
             raise ValueError("El método de asistencia es obligatorio")
+
+        # RBAC: un docente solo puede registrar asistencia para cursos que imparte.
+        if actor and actor.get("role") == "docente":
+            if not attendance_data.get('course_id'):
+                raise ValueError("Como docente, debes indicar el curso (course_id) de la asistencia.")
+            self._assert_can_access_course(attendance_data.get('course_id'), actor)
 
         if not attendance_data.get('date'):
             attendance_data['date'] = date.today()
@@ -102,18 +135,22 @@ class AttendanceServices:
 
         return result
 
-    def getAttendanceByStudent(self, student_id: int):
+    def getAttendanceByStudent(self, student_id: int, actor: dict | None = None):
+        self._assert_can_access_student_attendance(student_id, actor)
         return self.repo.getAttendanceByStudent(student_id)
 
-    def getAttendanceByStudentAndDate(self, student_id: int, target_date):
+    def getAttendanceByStudentAndDate(self, student_id: int, target_date, actor: dict | None = None):
+        self._assert_can_access_student_attendance(student_id, actor)
         parsed_date = self._parse_date(target_date)
         return self.repo.getAttendanceByStudentAndDate(student_id, parsed_date)
 
-    def getAttendanceByCourseAndDate(self, course_id: int, target_date):
+    def getAttendanceByCourseAndDate(self, course_id: int, target_date, actor: dict | None = None):
+        self._assert_can_access_course(course_id, actor)
         parsed_date = self._parse_date(target_date)
         return self.repo.getAttendanceByCourseAndDate(course_id, parsed_date)
 
-    def getAttendanceByCourseAndDateRange(self, course_id: int, start_date, end_date):
+    def getAttendanceByCourseAndDateRange(self, course_id: int, start_date, end_date, actor: dict | None = None):
+        self._assert_can_access_course(course_id, actor)
         start = self._parse_date(start_date)
         end = self._parse_date(end_date)
         return self.repo.getAttendanceByCourseAndDateRange(course_id, start, end)

@@ -27,10 +27,19 @@ def verify_password(
     hashed_password: str
 ) -> bool:
 
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8")
-    )
+    if not plain_password or not hashed_password:
+        return False
+
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8")
+        )
+    except ValueError:
+        # Hash corrupto o en un formato que bcrypt no reconoce: se trata
+        # como credencial inválida en vez de dejar que la excepción rompa
+        # el endpoint de login con un 500.
+        return False
 
 
 ######### Cifrado de datos biométricos (LFPDPPP) ##########

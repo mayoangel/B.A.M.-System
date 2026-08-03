@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, g
 from marshmallow import ValidationError
 from app.services.course_service import CourseService
 from app.schemas.courses import CourseSchema
+from app.core.permissions import admin_required, staff_required
 
 courses_bp = Blueprint('courses', __name__)
 course_schema = CourseSchema()
@@ -20,6 +21,7 @@ def serialize_course(course):
     }
 
 @courses_bp.route('/', methods=['POST'])
+@admin_required
 def create_course():
     data = request.get_json() or {}
     try:
@@ -34,6 +36,7 @@ def create_course():
         return jsonify({"error": str(e)}), 400
 
 @courses_bp.route('/', methods=['GET'])
+@admin_required
 def get_all_courses():
     try:
         service = CourseService(g.db)
@@ -43,10 +46,12 @@ def get_all_courses():
         return jsonify({"error": str(e)}), 400
 
 @courses_bp.route('/active', methods=['GET'])
+@staff_required
 def get_active_courses():
     try:
         service = CourseService(g.db)
-        courses = service.get_active_courses()
+        # RBAC: un docente solo ve los cursos que él mismo imparte.
+        courses = service.get_active_courses(actor=g.current_actor)
         return jsonify([serialize_course(c) for c in courses]), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -57,6 +62,7 @@ def get_active_courses():
         return jsonify({"error": f"No se pudieron obtener los cursos activos: {e}"}), 500
 
 @courses_bp.route('/<string:name>', methods=['GET'])
+@admin_required
 def get_course(name):
     try:
         service = CourseService(g.db)
@@ -66,6 +72,7 @@ def get_course(name):
         return jsonify({"error": str(e)}), 404
 
 @courses_bp.route('/<string:name>', methods=['DELETE'])
+@admin_required
 def delete_course(name):
     try:
         service = CourseService(g.db)

@@ -2,6 +2,8 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 from app.repositories.students_repository import StudentRepository
+from app.repositories.employee_course_repository import EmployeeCourseRepository
+from app.repositories.student_course_repository import StudentCoursesRepository
 from app.models.students import Students
 
 MATRICULA_PREFIX_TEMPLATE = "BAM-{year}-"
@@ -12,8 +14,10 @@ class StudentService:
     def __init__(self, db: Session):
         self.db = db
         self.repository = StudentRepository(db)
+        self.employee_course_repository = EmployeeCourseRepository(db)
+        self.student_course_repository = StudentCoursesRepository(db)
 
-    def register_student(self, student_data: dict) -> Students:
+    def register_student(self, student_data: dict, actor: dict | None = None) -> Students:
         if not student_data.get("name") or not student_data.get("lastname"):
             raise ValueError("El nombre y el apellido paterno son campos obligatorios.")
 
@@ -28,12 +32,35 @@ class StudentService:
             raise ValueError("Ya existe un estudiante registrado con ese nombre.")
 
         student_data = dict(student_data)
+        # `course_id` no es un campo de la entidad Students: solo se usa aquí
+        # para decidir la inscripción (ver RBAC de Docente más abajo).
+        requested_course_id = student_data.pop("course_id", None)
+
+        # RBAC: si un Docente registra a un alumno indicando un curso (ya sea
+        # en este mismo payload, o después mediante /enrollments/enroll), esa
+        # asignación solo puede ser a un curso que él mismo imparte. La
+        # inscripción real puede llegar en esta misma petición (`course_id`)
+        # o en una petición posterior de inscripción; ambos puntos de entrada
+        # validan la pertenencia del curso al docente.
+        if actor and actor.get("role") == "docente" and requested_course_id:
+            if not self.employee_course_repository.is_employee_assigned_to_course(
+                actor["id"], requested_course_id
+            ):
+                raise ValueError(
+                    "Solo puedes registrar alumnos en un curso que impartes."
+                )
+
         # La matrícula SIEMPRE la genera el sistema: se ignora cualquier valor
         # de `id_student` que haya llegado en el payload (el alumno es menor
         # de edad y no debe poder auto-asignarse un identificador).
         student_data["id_student"] = self._generate_matricula()
 
-        return self.repository.registerStudent(student_data)
+        student = self.repository.registerStudent(student_data)
+
+        if requested_course_id:
+            self.student_course_repository.enrollStudentInCourse(student.id, requested_course_id)
+
+        return student
 
     def _generate_matricula(self) -> str:
         """Genera la siguiente matrícula disponible con formato BAM-<año>-<secuencia>.
@@ -55,14 +82,35 @@ class StudentService:
     def list_all_students(self) -> list[Students]:
         return self.repository.getAllStudents()
 
-    def list_all_students_detailed(self) -> list[Students]:
+    def list_all_students_detailed(self, actor: dict | None = None) -> list[Students]:
         """Alumnos con su tutor y cursos precargados, para la pantalla de
-        administración (tabla con búsqueda/filtros por curso o estatus)."""
-        return self.repository.get_all_students_with_relations()
+        administración de alumnos. El resultado se filtra según el rol del
+        actor autenticado (RBAC):
+          - admin: todos los alumnos.
+          - docente: solo alumnos inscritos en cursos que imparte.
+          - tutor: solo sus propios hijos.
+        """
+        if not actor or actor.get("role") == "admin":
+            return self.repository.get_all_students_with_relations()
 
-    def list_students_by_course(self, course_id: int) -> list[Students]:
+        if actor.get("role") == "docente":
+            return self.repository.get_students_with_relations_by_employee(actor["id"])
+
+        if actor.get("role") == "tutor":
+            return self.repository.get_students_with_relations_by_parent(actor["id"])
+
+        return []
+
+    def list_students_by_course(self, course_id: int, actor: dict | None = None) -> list[Students]:
         if not course_id:
             raise ValueError("El identificador del curso (course_id) es obligatorio.")
+
+        if actor and actor.get("role") == "docente":
+            if not self.employee_course_repository.is_employee_assigned_to_course(
+                actor["id"], course_id
+            ):
+                raise PermissionError("Solo puedes consultar alumnos de un curso que impartes.")
+
         return self.repository.getStudentsByCourse(course_id)
 
     def get_student_by_name(self, student_name: str) -> Students:
@@ -71,11 +119,44 @@ class StudentService:
             raise ValueError(f"El estudiante '{student_name}' no fue encontrado.")
         return student
 
-    def get_student_by_id(self, student_pk: int) -> Students:
+    def get_student_by_id(self, student_pk: int, actor: dict | None = None) -> Students:
         student = self.repository.getStudentByPrimaryKey(student_pk)
         if not student:
             raise ValueError(f"No se encontró al alumno con ID {student_pk}.")
+
+        self._assert_can_access_student(student, actor)
         return student
+
+    def assert_actor_can_access_student(self, student_pk: int, actor: dict | None) -> Students:
+        """Punto de entrada usado por otros servicios (ej. biométrico) para
+        validar, antes de operar sobre un alumno, que el actor autenticado
+        tiene permiso de acceso según las reglas de RBAC."""
+        return self.get_student_by_id(student_pk, actor)
+
+    def _assert_can_access_student(self, student: Students, actor: dict | None) -> None:
+        if not actor or actor.get("role") == "admin":
+            return
+
+        if actor.get("role") == "docente":
+            # Un alumno recién creado (ej. durante el flujo de registro, antes
+            # de que se complete su inscripción a curso) todavía no pertenece
+            # a ningún curso: se permite el acceso para no romper ese flujo.
+            # Una vez que el alumno ya está inscrito en algún curso, solo los
+            # docentes de ese curso pueden seguir accediendo a él.
+            if student.courses and not self.repository.is_student_in_employee_courses(
+                student.id, actor["id"]
+            ):
+                raise PermissionError(
+                    "Solo puedes acceder a alumnos inscritos en cursos que impartes."
+                )
+            return
+
+        if actor.get("role") == "tutor":
+            if student.id_parent != actor["id"]:
+                raise PermissionError("Solo puedes acceder a la información de tus propios hijos.")
+            return
+
+        raise PermissionError("No tienes permisos para acceder a este alumno.")
 
     def update_student(self, student_name: str, new_data: dict) -> bool:
         new_data = dict(new_data)

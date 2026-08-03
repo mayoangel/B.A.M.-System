@@ -1,13 +1,15 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from marshmallow import ValidationError
 from app.core.database import get_db
 from app.services.parents_service import ParentService
 from app.schemas.parents import ParentSchema
+from app.core.permissions import admin_required, staff_required, roles_required, ROLE_ADMIN, ROLE_TUTOR
 
 parents_bp = Blueprint('parents', __name__, url_prefix='/parents')
 parent_schema = ParentSchema()
 
 @parents_bp.route('/', methods=['POST'])
+@staff_required
 def create_parent():
     db = get_db()
     parent_data = request.get_json() or {}
@@ -23,11 +25,12 @@ def create_parent():
         return jsonify({"error": str(e)}), 400
 
 @parents_bp.route('/id/<int:parent_id>', methods=['GET'])
+@roles_required(ROLE_ADMIN, ROLE_TUTOR)
 def get_parent_by_id(parent_id):
     db = get_db()
     try:
         service = ParentService(db)
-        parent = service.get_parent_by_id(parent_id)
+        parent = service.get_parent_by_id(parent_id, actor=g.current_actor)
         return jsonify({
             "id": parent.id,
             "name": parent.name,
@@ -39,11 +42,14 @@ def get_parent_by_id(parent_id):
             "dir_col": parent.dir_col,
             "dir_num": parent.dir_num,
         }), 200
+    except PermissionError as e:
+        return jsonify({"error": str(e)}), 403
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
 
 
 @parents_bp.route('/id/<int:parent_id>', methods=['PUT'])
+@admin_required
 def update_parent_by_id(parent_id):
     db = get_db()
     new_data = request.get_json() or {}
@@ -60,6 +66,7 @@ def update_parent_by_id(parent_id):
 
 
 @parents_bp.route('/<string:name>', methods=['GET'])
+@admin_required
 def get_parent(name):
     db = get_db()
     try:
@@ -70,6 +77,7 @@ def get_parent(name):
         return jsonify({"error": str(e)}), 404
 
 @parents_bp.route('/<string:name>', methods=['PUT'])
+@admin_required
 def update_parent(name):
     db = get_db()
     new_data = request.get_json() or {}
@@ -85,6 +93,7 @@ def update_parent(name):
         return jsonify({"error": str(e)}), 400
 
 @parents_bp.route('/<string:name>', methods=['DELETE'])
+@admin_required
 def delete_parent(name):
     db = get_db()
     try:

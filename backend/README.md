@@ -36,3 +36,42 @@ pip install -r requirements.txt
   resolución; ver `app/services/face_engine.py`.
 - Endpoints: `POST /api/v1/biometrics/enroll` (multipart: `image`, `user_id`)
   y `POST /api/v1/biometrics/identify` (multipart: `image`).
+
+## Autenticación y control de acceso por roles (RBAC)
+
+`POST /api/v1/auth/login` es un login unificado: recibe `{ email, password }`
+y busca la cuenta primero entre los **Empleados** (Administrador/Docente) y,
+si no hay coincidencia, entre los **Tutores** (`parents`). El JWT resultante
+incluye los claims `role` (`admin` | `docente` | `tutor`) y `actor_type`
+(`employee` | `parent`), que son los que valida `app/core/permissions.py` en
+cada endpoint protegido.
+
+Reglas de acceso:
+
+- **Administrador** (`role_id = 1` en `employees`): acceso total (CRUD) a
+  alumnos, docentes, cursos, asignaciones y asistencias.
+- **Docente** (cualquier otro `role_id`, ej. Profesor/Prefecto): solo lectura
+  de alumnos, filtrada a los inscritos en los cursos que imparte; puede
+  registrar alumnos (`POST /students/`) y enrolar su biometría, pero solo
+  puede inscribirlos (`POST /enrollments/enroll`) en un curso propio, y solo
+  puede tomar asistencia (`POST /attendance/`) para sus propios cursos.
+- **Tutor** (tabla `parents`, con `email`/`password` propios): solo lectura
+  (GET), filtrada siempre por su `parent_id` (extraído del JWT) — únicamente
+  ve a sus propios hijos y la asistencia/cursos asociados.
+
+Todas las peticiones protegidas requieren el header
+`Authorization: Bearer <token>`.
+
+### Credenciales de prueba (datos semilla)
+
+La contraseña de **todas** las cuentas semilla (`database/seeds.sql`) es
+`Bam2026!`:
+
+| Rol | Correo |
+|---|---|
+| Administrador | `ana.gomez@bam.com` |
+| Docente | `roberto.sanchez@bam.com` |
+| Docente (Prefecto) | `lucia.torres@bam.com` |
+| Tutor | `carlos.mendoza@mail.com` |
+| Tutor | `gabriela.espinoza@mail.com` |
+| Tutor | `manuel.castro@mail.com` |

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.employee_course import EmployeeCourse
 from app.models.employees import Employees
+from app.models.courses import Courses
 
 class EmployeeCourseRepository:
     def __init__(self, db: Session):
@@ -16,6 +17,29 @@ class EmployeeCourseRepository:
             .filter(EmployeeCourse.course_id == course_id)
             .order_by(Employees.name.asc())
             .all()
+        )
+
+    # RBAC (Docente): cursos que imparte un docente específico (para filtrar
+    # el selector de "Pase de Lista" y el alta de alumnos a su propio curso).
+    def get_courses_by_employee(self, employee_id: int) -> list[Courses]:
+        return (
+            self.db.query(Courses)
+            .join(EmployeeCourse, EmployeeCourse.course_id == Courses.id)
+            .filter(EmployeeCourse.employee_id == employee_id)
+            .order_by(Courses.name.asc())
+            .all()
+        )
+
+    # RBAC (Docente): ¿este docente imparte este curso?
+    def is_employee_assigned_to_course(self, employee_id: int, course_id: int) -> bool:
+        return (
+            self.db.query(EmployeeCourse)
+            .filter(
+                EmployeeCourse.employee_id == employee_id,
+                EmployeeCourse.course_id == course_id,
+            )
+            .first()
+            is not None
         )
 
     # Asignar un curso/materia a un empleado/docente

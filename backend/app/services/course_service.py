@@ -1,10 +1,12 @@
 from sqlalchemy.orm import Session
 from app.repositories.courses_repository import CourseRepository
+from app.repositories.employee_course_repository import EmployeeCourseRepository
 from app.models.courses import Courses
 
 class CourseService:
     def __init__(self, db: Session):
         self.repository = CourseRepository(db)
+        self.employee_course_repository = EmployeeCourseRepository(db)
 
     def register_course(self, course_data: dict) -> Courses:
         existing = self.repository.get_course_by_name(course_data.get("name"))
@@ -15,7 +17,15 @@ class CourseService:
     def get_all_courses(self):
         return self.repository.get_all_courses()
 
-    def get_active_courses(self):
+    def get_active_courses(self, actor: dict | None = None):
+        """RBAC: un docente solo debe ver, en los selectores de curso (alta de
+        alumnos, pase de lista), los cursos que él mismo imparte."""
+        if actor and actor.get("role") == "docente":
+            return [
+                course
+                for course in self.employee_course_repository.get_courses_by_employee(actor["id"])
+                if course.status == "Activo"
+            ]
         return self.repository.get_active_courses()
 
     def get_course_by_name(self, course_name: str) -> Courses:
