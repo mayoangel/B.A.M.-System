@@ -43,6 +43,13 @@ class DashboardService:
             end_date
         )
     
-    def get_weekly_attendance(self, db):
+    def get_weekly_attendance(
+        self,
+        db,
+        week_offset=0
+    ):
 
-        return self.repository.get_weekly_attendance(db)
+        return self.repository.get_weekly_attendance(
+            db,
+            week_offset
+        )

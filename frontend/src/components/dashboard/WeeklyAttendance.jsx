@@ -4,18 +4,20 @@ import { getWeeklyAttendance } from "../../api/dashboard";
 function WeeklyAttendance() {
 
     const [data, setData] = useState([]);
+    const [weekOffset, setWeekOffset] = useState(0);
+   
 
     useEffect(() => {
 
         loadAttendance();
 
-    }, []);
+    }, [weekOffset]);
 
     const loadAttendance = async () => {
 
         try {
 
-            const data = await getWeeklyAttendance();
+            const data = await getWeeklyAttendance(weekOffset);
             setData(data);
         } catch (error) {
 
@@ -25,7 +27,17 @@ function WeeklyAttendance() {
 
     };
 
-    const getDay = (date) => {
+    const getDay = (dateString) => {
+
+        const [year, month, day] = dateString
+            .split("-")
+            .map(Number);
+
+        const date = new Date(
+            year,
+            month - 1,
+            day
+        );
 
         const days = [
             "Dom",
@@ -37,11 +49,64 @@ function WeeklyAttendance() {
             "Sáb"
         ];
 
-        return days[
-            new Date(date).getDay()
-        ];
+        return days[date.getDay()];
 
     };
+
+    const isWeekend = (dateString) => {
+
+        const [year, month, day] = dateString
+            .split("-")
+            .map(Number);
+
+        const date = new Date(
+            year,
+            month - 1,
+            day
+        );
+
+        const dayOfWeek = date.getDay();
+
+        return dayOfWeek === 0 || dayOfWeek === 6;
+
+    };
+
+    const weeklyAverage =
+    data.length > 0
+    ? (
+        data.reduce(
+            (sum, item) => sum + item.attendance,
+            0
+        ) / data.length
+    ).toFixed(1)
+    : 0;
+
+
+    const orderedData = [...data].sort((a, b) => {
+
+        const getOrder = (dateString) => {
+
+            const [year, month, day] = dateString
+                .split("-")
+                .map(Number);
+
+            const date = new Date(
+                year,
+                month - 1,
+                day
+            );
+
+            const dayOfWeek = date.getDay();
+
+            return dayOfWeek === 0
+                ? 7
+                : dayOfWeek;
+
+        };
+
+        return getOrder(a.date) - getOrder(b.date);
+
+    });
 
     return (
 
@@ -55,11 +120,36 @@ function WeeklyAttendance() {
                         Asistencia Semanal
                     </div>
 
+
                     <div className="chart-subtitle">
                         Datos obtenidos del sistema
                     </div>
 
                 </div>
+
+                <select
+                    value={weekOffset}
+                    onChange={(e)=>setWeekOffset(Number(e.target.value))}
+                    className="border rounded-lg px-3 py-2 text-sm"
+                >
+
+                    <option value={0}>
+                        Esta semana
+                    </option>
+
+                    <option value={1}>
+                        Hace 1 semana
+                    </option>
+
+                    <option value={2}>
+                        Hace 2 semanas
+                    </option>
+
+                    <option value={3}>
+                        Hace 3 semanas
+                    </option>
+
+                </select>
 
             </div>
 
@@ -78,7 +168,7 @@ function WeeklyAttendance() {
                 <div className="chart-container">
 
                     {
-                        data.map((item) => (
+                        orderedData.map((item) => (
 
                             <div
                                 key={item.date}
@@ -89,9 +179,11 @@ function WeeklyAttendance() {
 
                                     <div
                                         className={
-                                            item.attendance >= 80
-                                                ? "chart-bar green"
-                                                : "chart-bar red"
+                                            isWeekend(item.date)
+                                                ? "chart-bar gray"
+                                                : item.attendance >= 80
+                                                    ? "chart-bar green"
+                                                    : "chart-bar red"
                                         }
                                         style={{
                                             height:
@@ -126,7 +218,7 @@ function WeeklyAttendance() {
 
                         <span className="legend-dot green"></span>
 
-                        Normal (mayor que 80%)
+                        Normal (&gt; 80%)
 
                     </div>
 
@@ -134,11 +226,31 @@ function WeeklyAttendance() {
 
                         <span className="legend-dot red"></span>
 
-                        Baja (menoor que 80%)
+                        Baja (&lt; 80%)
 
                     </div>
 
+                    <div className="legend-item">
+
+                        <span className="legend-dot gray"></span>
+
+                        Fin de semana
+
+                    </div>
+
+                    
+
                 </div>
+
+                <div className="chart-average">
+
+                        Promedio semanal:
+                        <strong>
+                            {" "}
+                            {weeklyAverage}%
+                        </strong>
+
+                    </div>
 
             </div>
 

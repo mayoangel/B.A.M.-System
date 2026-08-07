@@ -516,6 +516,7 @@ body {
     border-top: 1px solid #f0f0f0;
 }
 
+
 .chart-legend {
     display: flex;
     gap: 20px;
@@ -643,18 +644,11 @@ body {
     border-radius: 4px;
 }
 
-.course-progress.blue {
-    background-color: #1565c0;
-}
 
-.course-progress.teal {
-    background-color: #00897b;
-}
+
+
 
 .course-progress.green {
-    background-color: #43a047;
+    background-color: #2d5a3d;
 }
 
-.course-progress.cyan {
-    background-color: #00acc1;
-}

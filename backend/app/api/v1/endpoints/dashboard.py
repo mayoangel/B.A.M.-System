@@ -95,7 +95,6 @@ def get_history():
 
     return jsonify(result), 200
 
-
 @dashboard_bp.route(
     "/weekly-attendance",
     methods=["GET"]
@@ -104,8 +103,13 @@ def get_history():
 @admin_required
 def get_weekly_attendance():
 
+    week_offset = int(
+        request.args.get("week_offset", 0)
+    )
+
     result = service.get_weekly_attendance(
-        g.db
+        g.db,
+        week_offset
     )
 
     return jsonify(result), 200

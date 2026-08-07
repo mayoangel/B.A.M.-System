@@ -4,6 +4,7 @@ import { getCourses } from "../../api/dashboard";
 function CoursesCard() {
 
     const [courses, setCourses] = useState([]);
+    const MAX_STUDENTS = 30; // Capacidad máxima por curso
 
     useEffect(() => {
 
@@ -39,12 +40,12 @@ function CoursesCard() {
                     <br />
                     Curso
                 </div>
-
+                
                 <button
                     className="add-btn"
                 >
                     Agregar
-                </button>
+                </button> 
 
             </div>
 
@@ -56,51 +57,43 @@ function CoursesCard() {
 
                 {
                     courses.map(
-                        (course, index) => (
+                        (course, index) => {
+                            // Calcular porcentaje basado en 30 (tope fijo)
+                            const percentage = Math.min((course.students / MAX_STUDENTS) * 100, 100);
 
-                            <div
-                                key={course.course_id}
-                                className="course-item"
-                            >
+                            return (
+                                <div
+                                    key={course.course_id}
+                                    className="course-item"
+                                >
 
-                                <div className="course-header">
+                                    <div className="course-header">
 
-                                    <span className="course-name">
-                                        {course.course}
-                                    </span>
+                                        <span className="course-name">
+                                            {course.course}
+                                        </span>
 
-                                    <span className="course-count">
-                                        {course.students}
-                                    </span>
+                                        <span className="course-count">
+                                            {course.students}
+                                        </span>
 
-                                </div>
+                                    </div>
 
-                                <div className="course-bar">
+                                    <div className="course-bar">
 
-                                    <div
-                                        className={`course-progress ${
-                                            [
-                                                "blue",
-                                                "teal",
-                                                "green",
-                                                "cyan"
-                                            ][index % 4]
-                                        }`}
-                                        style={{
-                                            width: `${
-                                                (
-                                                    course.students /
-                                                    maxStudents
-                                                ) * 100
-                                            }%`
-                                        }}
-                                    />
+                                        <div
+                                            className="course-progress green"
+                                            style={{
+                                                width: `${percentage}%`
+                                            }}
+                                        />
+
+                                    </div>
 
                                 </div>
-
-                            </div>
-
-                        )
+                            );
+                        }
+                    
                     )
                 }
 

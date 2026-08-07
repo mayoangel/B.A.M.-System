@@ -19,43 +19,119 @@ class DashboardRepository:
     ### Grupos activos
     ### Alertas pendientes
     def get_summary(self, db):
-
         today = date.today()
+        yesterday = today - timedelta(days=1)
+        first_day_current_month = date(today.year, today.month, 1)
+        first_day_last_month = date(today.year, today.month - 1, 1) if today.month > 1 else date(today.year - 1, 12, 1)
+        last_day_last_month = first_day_current_month - timedelta(days=1)
 
+        # ===== TOTAL ESTUDIANTES =====
         total_students = db.query(Students).count()
 
+        # Estudiantes del mes pasado (para calcular crecimiento)
+        students_last_month = (
+            db.query(Students)
+            .filter(Students.created_at <= last_day_last_month)
+            .count()
+        )
+        
+        if students_last_month > 0:
+            students_growth = round(((total_students - students_last_month) / students_last_month) * 100, 0)
+        else:
+            students_growth = 0
+
+        # ===== ASISTENCIA HOY =====
+        # Presentes hoy (Asistencia + Retardo)
         present_today = (
             db.query(Attendance)
             .filter(
                 Attendance.date == today,
-                ##Attendance.status == "Presente"
-                Attendance.status.in_(
-                    ["Asistencia", "Retardo"]
-                )
+                Attendance.status.in_(["Asistencia", "Retardo"])
             )
             .count()
         )
 
+        # Total de asistencias registradas hoy
         total_today = (
             db.query(Attendance)
-            .filter(
-                Attendance.date == today
-            )
+            .filter(Attendance.date == today)
             .count()
         )
 
+        # Porcentaje de asistencia hoy
         attendance_percentage = (
             round((present_today / total_today) * 100, 2)
             if total_today > 0 else 0
         )
 
-        active_groups = db.query(Courses).count()
+        # ===== ASISTENCIA AYER (para comparación) =====
+        present_yesterday = (
+            db.query(Attendance)
+            .filter(
+                Attendance.date == yesterday,
+                Attendance.status.in_(["Asistencia", "Retardo"])
+            )
+            .count()
+        )
 
+        total_yesterday = (
+            db.query(Attendance)
+            .filter(Attendance.date == yesterday)
+            .count()
+        )
+
+        attendance_yesterday_percentage = (
+            round((present_yesterday / total_yesterday) * 100, 2)
+            if total_yesterday > 0 else 0
+        )
+
+        # Cambio porcentual vs ayer
+        if attendance_yesterday_percentage > 0:
+            attendance_change = round(
+                ((attendance_percentage - attendance_yesterday_percentage) / attendance_yesterday_percentage) * 100, 
+                1
+            )
+        else:
+            attendance_change = 0
+
+        # ===== GRUPOS ACTIVOS =====
+        active_groups = db.query(Courses).filter(Courses.status == "Activo").count()
+        
+        # Total de cursos diferentes (todos, no solo activos)
+        total_courses = db.query(Courses).count()
+
+        # ===== ALERTAS PENDIENTES =====
+        # Ejemplo: estudiantes con bajo rendimiento o inactivos
+        # Puedes personalizar esta lógica según tus necesidades
+        pending_alerts = 0
+        
+        # Ejemplo: estudiantes que no han tenido asistencia en los últimos 7 días
+        seven_days_ago = today - timedelta(days=7)
+        students_without_attendance = (
+            db.query(Students.id)
+            .outerjoin(Attendance, Attendance.student_id == Students.id)
+            .filter(
+                Students.status == "Activo",
+                ~Attendance.id.isnot(None)  # Esto es solo un ejemplo
+            )
+            .count()
+        )
+        pending_alerts = students_without_attendance  
+
+        
+        
         return {
+            # Cards principales
             "total_students": total_students,
+            "students_growth": students_growth,
             "attendance_today": attendance_percentage,
+            "attendance_change": attendance_change,
+            "present_today": present_today,
             "active_groups": active_groups,
-            "pending_alerts": 0
+            "different_courses": total_courses,
+            "pending_alerts": pending_alerts,
+            "total_today": total_today,
+            "attendance_yesterday": attendance_yesterday_percentage
         }
 
 
@@ -198,61 +274,97 @@ class DashboardRepository:
             for record in records
         ]
     
+    def get_weekly_attendance(
+        self,
+        db,
+        week_offset=0
+    ):
 
-    def get_weekly_attendance(self, db):
+        today = date.today()
 
-        last_records = (
+        monday = today - timedelta(days=today.weekday())
+
+        monday = monday - timedelta(weeks=week_offset)
+
+        sunday = monday + timedelta(days=6)
+
+        
+
+
+        records = (
+
             db.query(Attendance)
-            .order_by(
-                Attendance.date.desc()
+
+            .filter(
+                Attendance.date >= monday,
+                Attendance.date <= sunday
             )
+
             .all()
+
         )
 
         grouped = {}
 
-        for record in last_records:
+        for record in records:
 
-            day = str(record.date)
+            key = record.date
 
-            if day not in grouped:
+            if key not in grouped:
 
-                grouped[day] = {
-                    "total": 0,
-                    "present": 0
+                grouped[key] = {
+
+                    "total":0,
+                    "present":0
+
                 }
 
-            grouped[day]["total"] += 1
+            grouped[key]["total"] += 1
 
             if record.status in [
+
                 "Asistencia",
                 "Retardo"
-                ]:
-                grouped[day]["present"] += 1
+
+            ]:
+
+                grouped[key]["present"] += 1
 
         result = []
 
-        for day, values in grouped.items():
+        current = monday
 
-            percentage = (
-                round(
-                    (
-                        values["present"]
-                        /
-                        values["total"]
-                    ) * 100,
+        while current <= sunday:
+
+            if current in grouped:
+
+                total = grouped[current]["total"]
+
+                present = grouped[current]["present"]
+
+                percentage = round(
+
+                    present / total * 100,
+
                     2
+
                 )
-                if values["total"] > 0
-                else 0
-            )
+
+            else:
+
+                percentage = 0
 
             result.append({
-                "date": day,
+
+                "date": str(current),
+
                 "attendance": percentage
+
             })
 
-        return result[:7]
+            current += timedelta(days=1)
+
+        return result
 
             
 

@@ -11,6 +11,10 @@ export function getCourses() {
 }
 
 /** Asistencia semanal */
-export function getWeeklyAttendance() {
-  return apiGet('/dashboard/weekly-attendance')
+export function getWeeklyAttendance(
+    weekOffset = 0
+) {
+    return apiGet(
+        `/dashboard/weekly-attendance?week_offset=${weekOffset}`
+    );
 }

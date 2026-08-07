@@ -13,10 +13,14 @@ INSERT INTO parents (name, lastname, surename, phone, email, password, dir_stree
 ('Gabriela', 'Espinoza', 'Luna', '5557654321', 'gabriela.espinoza@mail.com', '$2b$12$dxWKw9k.ki7dmsP4rKh9fOMt9FjhB4i6MS1TfDQZZ7qST9eRsAYxO', 'Calle Olivo', 'Del Valle', '45'),
 ('Manuel', 'Castro', 'Ortiz', '5559876543', 'manuel.castro@mail.com', '$2b$12$46anHMm5NrSukM24Jk7K8uIYh/JwYLQ83NafgeXbHuaBurjjG0hD2', 'Calle Colima', 'Roma', '110');
 
-INSERT INTO courses (name, description, category, start_date, end_date, time_duration) VALUES
-('Programación en Python', 'Curso básico desde cero', 'Tecnología', '2026-01-15', '2026-06-15', '80 horas'),
-('Diseño UI/UX', 'Principios de diseño de interfaces', 'Diseño', '2026-02-01', '2026-05-01', '50 horas'),
-('Base de Datos SQL', 'Diseño y optimización de consultas', 'Tecnología', '2026-03-01', '2026-07-01', '60 horas');
+-- INSERT INTO courses (name, description, category, start_date, end_date, time_duration) VALUES
+--('Programación en Python', 'Curso básico desde cero', 'Tecnología', '2026-01-15', '2026-06-15', '80 horas'),
+--('Diseño UI/UX', 'Principios de diseño de interfaces', 'Diseño', '2026-02-01', '2026-05-01', '50 horas'),
+--('Base de Datos SQL', 'Diseño y optimización de consultas', 'Tecnología', '2026-03-01', '2026-07-01', '60 horas');
+INSERT INTO courses (name, description, category, start_date, end_date, time_duration, days_of_week, status) VALUES
+('Programación en Python', 'Curso básico desde cero', 'Tecnología', '2026-01-15', '2026-06-15', '80 horas', 'Lunes-Miércoles', 'Activo'),
+('Diseño UI/UX', 'Principios de diseño de interfaces', 'Diseño', '2026-02-01', '2026-05-01', '50 horas', 'Martes-Jueves', 'Activo'),
+('Base de Datos SQL', 'Diseño y optimización de consultas', 'Tecnología', '2026-03-01', '2026-07-01', '60 horas', 'Lunes-Miércoles-Viernes', 'Activo');
 
 INSERT INTO employees (id_employee, name, lastname, surename, email, password, phone, age, status, dir_street, dir_col, dir_num, role_id) VALUES
 (1001, 'Ana', 'Gomez', 'Pérez', 'ana.gomez@bam.com', '$2b$12$u41JnNd8C58LXv2bpsyPn.tXhvRxV7viGOt4iS6scre2zFyKVbDTS', '5551112223', 35, 'Activo', 'Av. Reforma', 'Centro', '102', 1), 

@@ -2,18 +2,22 @@ import { useEffect, useState } from "react";
 import { getSummary } from "../../api/dashboard";
 
 import {
-    FaGraduationCap,
-    FaUserCheck,
-    FaUsers,
-    FaTriangleExclamation
-} from "react-icons/fa6";
+    GraduationCap,
+    UserCheck,
+    Users,
+    TriangleAlert
+} from "lucide-react";
 
 function StatsCards() {
 
     const [data, setData] = useState({
         total_students: 0,
+        students_growth: 0,
         attendance_today: 0,
+        attendance_change: 0,
+        present_today: 0,
         active_groups: 0,
+        different_courses: 0,
         pending_alerts: 0
     });
 
@@ -48,13 +52,14 @@ function StatsCards() {
                     </div>
 
                     <div className="stat-change positive">
-                        Registrados
+                        
+                        ↗ +{data.students_growth}% este mes
                     </div>
 
                 </div>
 
                 <div className="stat-icon green">
-                    <FaGraduationCap />
+                    <GraduationCap />
                 </div>
 
             </div>
@@ -68,17 +73,17 @@ function StatsCards() {
                     </div>
 
                     <div className="stat-value">
-                        {data.attendance_today}
+                        {data.attendance_today}%
                     </div>
 
                     <div className="stat-change positive">
-                        Presentes hoy
+                        ↗ +{data.attendance_change}% vs ayer
                     </div>
 
                 </div>
 
                 <div className="stat-icon gray">
-                    <FaUserCheck />
+                    <UserCheck />
                 </div>
 
             </div>
@@ -96,13 +101,13 @@ function StatsCards() {
                     </div>
 
                     <div className="stat-change">
-                        Cursos disponibles
+                        {data.different_courses} cursos disponibles
                     </div>
 
                 </div>
 
                 <div className="stat-icon gray">
-                    <FaUsers />
+                    <Users />
                 </div>
 
             </div>
@@ -126,7 +131,7 @@ function StatsCards() {
                 </div>
 
                 <div className="stat-icon red">
-                    <FaTriangleExclamation />
+                    <TriangleAlert />
                 </div>
 
             </div>
