@@ -1,0 +1,42 @@
+bcrypt==4.2.1
+blinker==1.9.0
+cffi==2.1.0
+click==8.4.2
+cryptography==49.0.0
+Flask==3.1.3
+Flask-Cors==6.0.1
+Flask-JWT-Extended==4.7.4
+greenlet==3.5.3
+itsdangerous==2.2.0
+Jinja2==3.1.6
+marshmallow==3.26.1
+MarkupSafe==3.0.3
+mysql-connector-python==9.7.0
+pycparser==3.0
+PyJWT==2.13.0
+PyMySQL==1.2.0
+python-dotenv==1.2.2
+SQLAlchemy==2.0.51
+typing_extensions==4.16.0
+Werkzeug==3.1.8
+
+######### Motor de reconocimiento facial (RF-02 / RF-03) #########
+#
+# IMPORTANTE - Versión de Python: este stack requiere Python 3.10, 3.11 o
+# 3.12. NO instalar con Python 3.13: `insightface` depende de
+# `scikit-image`/`scikit-learn`, que todavía no publican wheels
+# precompilados para 3.13 en Windows; pip intenta compilarlos desde
+# fuente y falla (requiere un toolchain C/C++ con soporte C11 completo,
+# p.ej. faltante 'stdalign.h' con MSVC Build Tools 2019). Validado en este
+# entorno: con Python 3.13 la instalación de scikit-learn (dependencia
+# transitiva) falla; con 3.10-3.12 existen wheels binarios para todas
+# estas librerías y la instalación es directa.
+#
+# numpy se fija en la rama 1.26.x (en vez de la última 2.x) porque es la
+# más ampliamente probada junto con insightface/scikit-image/onnxruntime.
+numpy==1.26.4
+# Build "headless" de OpenCV: sin dependencias de GUI (Qt/gtk), adecuada
+# para un backend servido sin entorno gráfico.
+opencv-python-headless==4.11.0.86
+onnxruntime==1.20.1
+# insightface==0.7.3
