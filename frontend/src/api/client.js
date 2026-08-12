@@ -6,7 +6,10 @@
  * para errores de validación de Marshmallow (400) como para errores de
  * dominio (404/409/422), y este cliente los transforma en `ApiError`.
  */
-export const API_BASE_URL = 'http://localhost:5000/api/v1'
+// En local: http://localhost:5000/api/v1
+// En Vercel: la URL pública del túnel (ngrok/cloudflared) + /api/v1
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:5000/api/v1'
 
 // Misma llave usada por `src/auth/AuthContext.jsx` para persistir la sesión.
 // Vive aquí (y no se importa desde el contexto) para que este módulo pueda

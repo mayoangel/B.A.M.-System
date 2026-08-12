@@ -21,9 +21,15 @@ class Settings:
 
     # Orígenes permitidos para CORS (frontend de React en desarrollo con Vite).
     # Configurable vía .env como lista separada por comas para producción.
-    CORS_ORIGINS: list[str] = os.getenv(
-        "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
-    ).split(",")
+    # Incluye el origen de Vercel en producción, p. ej.:
+    # CORS_ORIGINS=http://localhost:5173,https://tu-app.vercel.app
+    CORS_ORIGINS: list[str] = [
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+        ).split(",")
+        if origin.strip()
+    ]
 
     # Llave simétrica (Fernet) usada para cifrar los vectores faciales
     # (RF-02/RF-03) antes de guardarlos en la base de datos, según lo exige
