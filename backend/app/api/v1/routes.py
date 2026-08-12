@@ -19,6 +19,7 @@ from app.api.v1.endpoints.roles import roles_bp
 from app.api.v1.endpoints.student_course import enrollments_bp
 from app.api.v1.endpoints.student_tutor import student_tutor_bp
 from app.api.v1.endpoints.students import students_bp
+from app.api.v1.endpoints.dashboard import dashboard_bp 
 
 BLUEPRINTS = (
     (students_bp, "/api/v1/students"),
@@ -35,6 +36,7 @@ BLUEPRINTS = (
     (employee_course_bp, "/api/v1/employee_course"),
     (non_working_days_bp, "/api/v1/calendar"),
     (auth_bp, "/api/v1/auth"),
+    (dashboard_bp, "/api/v1/dashboard"),
 )
 
 

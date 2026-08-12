@@ -8,6 +8,7 @@ import AttendanceSession from './components/attendance/AttendanceSession.jsx'
 import StudentManagement from './components/management/StudentManagement.jsx'
 import CourseManagement from './components/courses/CourseManagement.jsx'
 import MyChildrenPanel from './components/tutor/MyChildrenPanel.jsx'
+import Dashboard from './components/dashboard/Dashboard.jsx'
 
 function LoginRoute() {
   const { isAuthenticated, user } = useAuth()
@@ -38,6 +39,14 @@ function App() {
             }
           >
             <Route index element={<RoleHomeRedirect />} />
+            <Route
+              path="dashboard"
+              element={
+                <ProtectedRoute allowedRoles={[ROLE_ADMIN]}>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="registro-alumno"

@@ -9,7 +9,7 @@ load_dotenv()
 class Settings:
     PROJECT_NAME: str = "BAM System"
     DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", "mysql+pymysql://root@localhost:3306/BAM_System"
+        "DATABASE_URL", "mysql+pymysql://root:admin1@localhost:3306/BAM_System"
     )
 
     JWT_SECRET_KEY = os.getenv(
