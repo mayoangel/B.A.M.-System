@@ -6,8 +6,9 @@ Esta es la ÚNICA pieza del sistema que conoce el stack de IA
 y las excepciones de `biometric_exceptions.py`.
 
 Cámara de referencia: Logitech C920 (idealmente 1920x1080, imagen nítida).
-Los umbrales de calidad de abajo están calibrados para ese escenario; si en
-el futuro se usa otra cámara con peor resolución, ajustar estas constantes.
+Los umbrales de calidad de abajo están calibrados para ese escenario, pero el
+umbral de nitidez se escala según la resolución real de cada frame para
+seguir funcionando con cámaras de menor calidad (ver `SHARPNESS_REFERENCE_AREA`).
 """
 from __future__ import annotations
 
@@ -32,10 +33,20 @@ DEFAULT_DET_SIZE = (640, 640)     # tamaño de entrada del detector (RetinaFace)
 
 # --- Umbrales de calidad de imagen ------------------------------------------
 MIN_DETECTION_SCORE = 0.55        # confianza mínima del detector de rostros
-MIN_FACE_AREA_RATIO = 0.02        # el rostro debe ocupar al menos ~2% del frame (1920x1080)
+MIN_FACE_AREA_RATIO = 0.02        # el rostro debe ocupar al menos ~2% del frame (ratio, no depende de la resolución)
 MIN_BRIGHTNESS = 60.0             # brillo medio en escala de grises (0-255)
 MAX_BRIGHTNESS = 200.0
-MIN_SHARPNESS = 80.0              # varianza del Laplaciano; valores bajos = imagen borrosa
+
+# La varianza del Laplaciano (nitidez) depende de cuántos píxeles tiene la
+# imagen: una cámara de menor resolución (ej. webcams USB genéricas VGA)
+# produce valores más bajos que una Logitech C920 en 1920x1080 aunque el
+# encuadre esté igualmente enfocado. Por eso el umbral se calibra para una
+# resolución de referencia y se escala proporcionalmente al área real de
+# cada frame, con un piso absoluto para seguir rechazando imágenes
+# genuinamente borrosas sin importar la cámara.
+MIN_SHARPNESS = 80.0
+SHARPNESS_REFERENCE_AREA = 1920 * 1080
+MIN_SHARPNESS_FLOOR = 15.0
 
 
 class FaceEngine:
@@ -77,6 +88,7 @@ class FaceEngine:
         `PoorImageQualityError` según corresponda.
         """
         image = self._decode_image(image_bytes)
+        logger.info("Imagen recibida: %dx%d px.", image.shape[1], image.shape[0])
         self._validate_frame_quality(image)
 
         faces = self._get_app().get(image)
@@ -92,6 +104,7 @@ class FaceEngine:
             )
 
         face = max(faces, key=lambda f: f.det_score)
+        logger.info("Confianza de detección (det_score) = %.4f (mínimo %.2f).", float(face.det_score), MIN_DETECTION_SCORE)
 
         if float(face.det_score) < MIN_DETECTION_SCORE:
             raise PoorImageQualityError(
@@ -121,13 +134,25 @@ class FaceEngine:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         brightness = float(np.mean(gray))
+        sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+
+        frame_area = float(gray.shape[0] * gray.shape[1])
+        scaled_min_sharpness = max(
+            MIN_SHARPNESS_FLOOR, MIN_SHARPNESS * (frame_area / SHARPNESS_REFERENCE_AREA)
+        )
+
+        logger.info(
+            "Calidad de imagen: brillo=%.1f (rango %.0f-%.0f), nitidez=%.1f (mínimo %.1f para %dx%d px).",
+            brightness, MIN_BRIGHTNESS, MAX_BRIGHTNESS, sharpness, scaled_min_sharpness,
+            gray.shape[1], gray.shape[0],
+        )
+
         if brightness < MIN_BRIGHTNESS:
             raise PoorImageQualityError("Mala iluminación: la imagen está demasiado oscura.")
         if brightness > MAX_BRIGHTNESS:
             raise PoorImageQualityError("Mala iluminación: la imagen está sobreexpuesta.")
 
-        sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
-        if sharpness < MIN_SHARPNESS:
+        if sharpness < scaled_min_sharpness:
             raise PoorImageQualityError(
                 "Imagen borrosa: mantén la cámara y el rostro estables durante la captura."
             )
@@ -137,8 +162,10 @@ class FaceEngine:
         x1, y1, x2, y2 = face.bbox
         face_area = max(0.0, float(x2 - x1)) * max(0.0, float(y2 - y1))
         frame_area = float(image_shape[0] * image_shape[1])
+        ratio = (face_area / frame_area) if frame_area > 0 else 0.0
+        logger.info("Tamaño de rostro: %.4f del frame (mínimo %.4f).", ratio, MIN_FACE_AREA_RATIO)
 
-        if frame_area <= 0 or (face_area / frame_area) < MIN_FACE_AREA_RATIO:
+        if frame_area <= 0 or ratio < MIN_FACE_AREA_RATIO:
             raise PoorImageQualityError(
                 "El rostro está demasiado lejos de la cámara; acércate e inténtalo de nuevo."
             )

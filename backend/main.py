@@ -5,6 +5,8 @@ es: crear la app de Flask, cargar la configuración inicial (core/) y
 registrar las rutas expuestas por la capa de presentación (api/).
 """
 
+import logging
+
 from flask import Flask, g
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -12,6 +14,8 @@ from flask_jwt_extended import JWTManager
 from app.api.v1.routes import register_routes
 from app.core.config import settings
 from app.core.database import SessionLocal
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
 def create_app() -> Flask:
