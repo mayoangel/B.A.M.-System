@@ -27,10 +27,6 @@ class StudentService:
         if not student_data.get("id_parent"):
             raise ValueError("Se requiere el ID del tutor (id_parent) para registrar al alumno.")
 
-        existing_name = self.repository.getStudentByName(student_data.get("name"))
-        if existing_name:
-            raise ValueError("Ya existe un estudiante registrado con ese nombre.")
-
         student_data = dict(student_data)
         # `course_id` no es un campo de la entidad Students: solo se usa aquí
         # para decidir la inscripción (ver RBAC de Docente más abajo).

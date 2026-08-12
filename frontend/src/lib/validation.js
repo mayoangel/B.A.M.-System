@@ -9,7 +9,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_REGEX = /^\d{10}$/
 
 export const MIN_STUDENT_AGE = 3
-export const MAX_STUDENT_AGE = 17
+export const MAX_STUDENT_AGE = 99
 export const TUTOR_PASSWORD_MIN_LENGTH = 8
 
 function getAgeFromDateOfBirth(dateString) {
@@ -51,7 +51,7 @@ export function validateStudentData(data) {
       errors.date_of_birth = 'La fecha de nacimiento no puede ser futura.'
     } else if (result.age < MIN_STUDENT_AGE || result.age > MAX_STUDENT_AGE) {
       errors.date_of_birth =
-        `El alumno debe ser menor de edad (entre ${MIN_STUDENT_AGE} y ${MAX_STUDENT_AGE} años).`
+        `La edad del alumno debe estar entre ${MIN_STUDENT_AGE} y ${MAX_STUDENT_AGE} años.`
     }
   }
 

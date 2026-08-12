@@ -12,7 +12,7 @@ from marshmallow import EXCLUDE, Schema, ValidationError, fields, validate, vali
 from app.schemas.common import STATUS_ACTIVO_INACTIVO, name_validator
 
 MIN_STUDENT_AGE = 3
-MAX_STUDENT_AGE = 17  # Los alumnos deben ser menores de edad.
+MAX_STUDENT_AGE = 99
 
 
 class StudentSchema(Schema):
@@ -44,6 +44,5 @@ class StudentSchema(Schema):
             raise ValidationError("La fecha de nacimiento no puede estar en el futuro.")
         if age < MIN_STUDENT_AGE or age > MAX_STUDENT_AGE:
             raise ValidationError(
-                "La fecha de nacimiento debe corresponder a un alumno menor de edad "
-                f"(entre {MIN_STUDENT_AGE} y {MAX_STUDENT_AGE} años)."
+                f"La edad del alumno debe estar entre {MIN_STUDENT_AGE} y {MAX_STUDENT_AGE} años."
             )
